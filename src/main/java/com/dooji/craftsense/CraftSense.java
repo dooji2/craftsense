@@ -17,11 +17,23 @@ public class CraftSense implements ModInitializer {
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 	public static final ConfigurationManager configManager = new ConfigurationManager();
 
+	private static boolean hasEnteredWorld = false;
+
 	@Override
 	public void onInitialize() {
 		CraftSenseKeyBindings.register();
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			if (client.player != null && !hasEnteredWorld) {
+                hasEnteredWorld = true;
+
+                if (configManager.isFirstTime()) {
+                    String toggleKeyText = CraftSenseKeyBindings.toggleKey.getBoundKeyLocalizedText().getString();
+                    createToast("Welcome to CraftSense", "Toggle CraftSense with " + toggleKeyText);
+                    configManager.toggleFirstTime();
+                }
+            }
+
 			while (CraftSenseKeyBindings.toggleKey.wasPressed()) {
 				configManager.toggleEnabled();
 				boolean enabled = configManager.isEnabled();
