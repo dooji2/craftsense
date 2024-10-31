@@ -71,7 +71,7 @@ public class CraftingPredictor {
     }
 
     public Optional<CraftingRecipe> suggestRecipe(RecipeInputInventory input, PlayerInventory playerInventory, ItemStack cursorStack, World world) {
-        if (isGridEmpty(input) || recipeManager.getFirstMatch(RecipeType.CRAFTING, input.createRecipeInput(), world).isPresent()) {
+        if (!CraftSense.configManager.isEnabled() || isGridEmpty(input) || recipeManager.getFirstMatch(RecipeType.CRAFTING, input.createRecipeInput(), world).isPresent()) {
             return Optional.empty();
         }
 

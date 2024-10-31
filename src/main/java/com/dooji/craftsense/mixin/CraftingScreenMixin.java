@@ -1,5 +1,6 @@
 package com.dooji.craftsense.mixin;
 
+import com.dooji.craftsense.CraftSense;
 import com.dooji.craftsense.CraftingPredictor;
 import com.dooji.craftsense.manager.CategoryHabitsTracker;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -33,6 +34,10 @@ public abstract class CraftingScreenMixin {
 
     @Inject(method = "render", at = @At("TAIL"))
     private void renderCraftingPrediction(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        if (!CraftSense.configManager.isEnabled()) {
+            return;
+        }
+
         CraftingScreen craftingScreen = (CraftingScreen) (Object) this;
         MinecraftClient client = MinecraftClient.getInstance();
         PlayerInventory playerInventory = client.player.getInventory();
