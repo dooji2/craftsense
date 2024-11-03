@@ -29,8 +29,18 @@ public class CategoryGenerator {
     public static void generateCategories() {
         Map<String, List<String>> categorizedItems = loadExistingCategories();
 
-        List<String> toolKeywords = Arrays.asList("AXE", "PICKAXE", "SWORD", "SHOVEL");
-        List<String> armorKeywords = Arrays.asList("HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS");
+        Map<String, List<String>> specificCategories = new HashMap<>();
+        specificCategories.put("TOOL", Arrays.asList("AXE", "PICKAXE", "SWORD", "SHOVEL"));
+        specificCategories.put("ARMOR", Arrays.asList("HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"));
+        specificCategories.put("SIGN", Collections.singletonList("SIGN"));
+        specificCategories.put("STAIR", Collections.singletonList("STAIR"));
+        specificCategories.put("DOOR", Collections.singletonList("DOOR"));
+        specificCategories.put("FENCE", Arrays.asList("FENCE", "FENCE_GATE"));
+        specificCategories.put("BUTTON", Collections.singletonList("BUTTON"));
+        specificCategories.put("PRESSURE_PLATE", Collections.singletonList("PRESSURE_PLATE"));
+        specificCategories.put("SLAB", Collections.singletonList("SLAB"));
+        specificCategories.put("TRAPDOOR", Collections.singletonList("TRAPDOOR"));
+        specificCategories.put("BOAT", Collections.singletonList("BOAT"));
 
         for (Item item : Registries.ITEM) {
             Identifier itemId = Registries.ITEM.getId(item);
@@ -44,14 +54,20 @@ public class CategoryGenerator {
                     .filter(word -> word.length() > 2)
                     .collect(Collectors.toList());
 
-            boolean isToolOrArmor = keywords.stream().anyMatch(toolKeywords::contains) || keywords.stream().anyMatch(armorKeywords::contains);
+            boolean isInSpecificCategory = false;
 
-            for (String keyword : keywords) {
-                if (isToolOrArmor) {
-                    if (toolKeywords.contains(keyword) || armorKeywords.contains(keyword)) {
-                        categorizedItems.computeIfAbsent(keyword, k -> new ArrayList<>()).add(itemName);
-                    }
-                } else {
+            for (Map.Entry<String, List<String>> entry : specificCategories.entrySet()) {
+                String category = entry.getKey();
+                List<String> categoryKeywords = entry.getValue();
+
+                if (keywords.stream().anyMatch(categoryKeywords::contains)) {
+                    categorizedItems.computeIfAbsent(category, k -> new ArrayList<>()).add(itemName);
+                    isInSpecificCategory = true;
+                }
+            }
+
+            if (!isInSpecificCategory) {
+                for (String keyword : keywords) {
                     categorizedItems.computeIfAbsent(keyword, k -> new ArrayList<>()).add(itemName);
                 }
             }
