@@ -29,6 +29,9 @@ public class CategoryGenerator {
     public static void generateCategories() {
         Map<String, List<String>> categorizedItems = loadExistingCategories();
 
+        List<String> toolKeywords = Arrays.asList("AXE", "PICKAXE", "SWORD", "SHOVEL");
+        List<String> armorKeywords = Arrays.asList("HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS");
+
         for (Item item : Registries.ITEM) {
             Identifier itemId = Registries.ITEM.getId(item);
             String itemName = itemId.getPath().toUpperCase();
@@ -41,8 +44,16 @@ public class CategoryGenerator {
                     .filter(word -> word.length() > 2)
                     .collect(Collectors.toList());
 
+            boolean isToolOrArmor = keywords.stream().anyMatch(toolKeywords::contains) || keywords.stream().anyMatch(armorKeywords::contains);
+
             for (String keyword : keywords) {
-                categorizedItems.computeIfAbsent(keyword, k -> new ArrayList<>()).add(itemName);
+                if (isToolOrArmor) {
+                    if (toolKeywords.contains(keyword) || armorKeywords.contains(keyword)) {
+                        categorizedItems.computeIfAbsent(keyword, k -> new ArrayList<>()).add(itemName);
+                    }
+                } else {
+                    categorizedItems.computeIfAbsent(keyword, k -> new ArrayList<>()).add(itemName);
+                }
             }
         }
 
