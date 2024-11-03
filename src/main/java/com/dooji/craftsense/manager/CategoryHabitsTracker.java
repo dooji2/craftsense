@@ -14,7 +14,7 @@ import java.util.Map;
 
 public class CategoryHabitsTracker {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Path CONFIG_PATH = Path.of("config/CraftSense/habits.json");
+    private static final Path HABITS_PATH = Path.of("config/CraftSense/habits.json");
 
     private Map<String, Integer> categoryCraftCounts;
 
@@ -25,9 +25,9 @@ public class CategoryHabitsTracker {
 
     private void load() {
         try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            if (Files.exists(CONFIG_PATH)) {
-                try (FileReader reader = new FileReader(CONFIG_PATH.toFile())) {
+            Files.createDirectories(HABITS_PATH.getParent());
+            if (Files.exists(HABITS_PATH)) {
+                try (FileReader reader = new FileReader(HABITS_PATH.toFile())) {
                     categoryCraftCounts = GSON.fromJson(reader, new TypeToken<Map<String, Integer>>() {}.getType());
                 }
             } else {
@@ -39,7 +39,7 @@ public class CategoryHabitsTracker {
     }
 
     public void save() {
-        try (FileWriter writer = new FileWriter(CONFIG_PATH.toFile())) {
+        try (FileWriter writer = new FileWriter(HABITS_PATH.toFile())) {
             GSON.toJson(categoryCraftCounts, writer);
         } catch (IOException e) {
             e.printStackTrace();

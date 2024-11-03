@@ -1,5 +1,6 @@
 package com.dooji.craftsense;
 
+import com.dooji.craftsense.manager.CategoryGenerator;
 import com.dooji.craftsense.manager.ConfigurationManager;
 import com.dooji.craftsense.ui.CustomToast;
 import net.fabricmc.api.ModInitializer;
@@ -22,6 +23,8 @@ public class CraftSense implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		CraftSenseKeyBindings.register();
+
+		CategoryGenerator.generateCategories();
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (client.player != null && !hasEnteredWorld) {
