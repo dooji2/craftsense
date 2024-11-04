@@ -17,6 +17,9 @@
 	"entrypoints": {
 		"main": [
 			"com.dooji.craftsense.CraftSense"
+		],
+		"client": [
+			"com.dooji.craftsense.CraftSenseClient"
 		]
 	},
 	"mixins": [

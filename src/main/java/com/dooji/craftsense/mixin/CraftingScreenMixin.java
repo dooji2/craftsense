@@ -3,7 +3,9 @@ package com.dooji.craftsense.mixin;
 import com.dooji.craftsense.CraftSense;
 import com.dooji.craftsense.CraftingPredictor;
 import com.dooji.craftsense.manager.CategoryHabitsTracker;
+import com.dooji.craftsense.network.payloads.CraftItemPayload;
 import com.mojang.blaze3d.systems.RenderSystem;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.CraftingScreen;
@@ -12,25 +14,33 @@ import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.RecipeInputInventory;
 import net.minecraft.item.ItemStack;
-import net.minecraft.recipe.CraftingRecipe;
-import net.minecraft.recipe.Ingredient;
-import net.minecraft.recipe.ShapedRecipe;
+import net.minecraft.recipe.*;
 import net.minecraft.screen.CraftingScreenHandler;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Mixin(CraftingScreen.class)
 public abstract class CraftingScreenMixin {
+
+    @Unique
+    private int resultSlotX;
+
+    @Unique
+    private int resultSlotY;
 
     @Inject(method = "render", at = @At("TAIL"))
     private void renderCraftingPrediction(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
@@ -61,8 +71,8 @@ public abstract class CraftingScreenMixin {
         int screenY = ((HandledScreenAccessor) this).getY();
 
         ItemStack resultStack = recipe.getResult(world.getRegistryManager());
-        int resultSlotX = screenX + 124;
-        int resultSlotY = screenY + 35;
+        resultSlotX = screenX + 124;
+        resultSlotY = screenY + 35;
 
         renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f);
 
@@ -138,6 +148,34 @@ public abstract class CraftingScreenMixin {
         }
     }
 
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void onSuggestedRecipeClick(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
+        if (isMouseOverSlot((int) mouseX, (int) mouseY, resultSlotX, resultSlotY)) {
+            MinecraftClient client = MinecraftClient.getInstance();
+            PlayerInventory playerInventory = client.player.getInventory();
+            World world = client.world;
+
+            CraftingScreenHandler handler = ((CraftingScreen) (Object) this).getScreenHandler();
+            RecipeInputInventory input = ((CraftingScreenHandlerAccessor) handler).getInput();
+            CraftingPredictor predictor = new CraftingPredictor(world.getRecipeManager(), new CategoryHabitsTracker());
+            Optional<CraftingRecipe> optionalRecipe = predictor.suggestRecipe(input, playerInventory, handler.getCursorStack(), world);
+
+            if (optionalRecipe.isPresent()) {
+                CraftingRecipe recipe = optionalRecipe.get();
+                Identifier recipeId = findRecipeId(world.getRecipeManager(), recipe);
+
+                if (recipeId != null) {
+                    ItemStack resultStack = recipe.getResult(world.getRegistryManager()).copy();
+                    handler.setCursorStack(resultStack);
+
+                    ClientPlayNetworking.send(new CraftItemPayload(recipeId.toString()));
+
+                    cir.setReturnValue(true);
+                }
+            }
+        }
+    }
+
     @Unique
     private void renderGhostItem(DrawContext context, ItemStack stack, int x, int y, float opacity) {
         context.getMatrices().push();
@@ -167,5 +205,24 @@ public abstract class CraftingScreenMixin {
         vertexConsumer.vertex(matrix, x2, y1, z).color(color);
 
         context.draw();
+    }
+
+    @Unique
+    private boolean isMouseOverSlot(int mouseX, int mouseY, int slotX, int slotY) {
+        return mouseX >= slotX && mouseX < slotX + 16 && mouseY >= slotY && mouseY < slotY + 16;
+    }
+
+    @Unique
+    @Nullable
+    private Identifier findRecipeId(RecipeManager recipeManager, CraftingRecipe targetRecipe) {
+        Map<Identifier, RecipeEntry<?>> recipesById = ((RecipeManagerAccessor) recipeManager).getRecipesById();
+
+        for (Map.Entry<Identifier, RecipeEntry<?>> entry : recipesById.entrySet()) {
+            Recipe<?> recipe = entry.getValue().value();
+            if (recipe instanceof CraftingRecipe && recipe == targetRecipe) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 }
