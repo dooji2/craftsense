@@ -28,10 +28,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Mixin(CraftingScreen.class)
 public abstract class CraftingScreenMixin {
@@ -166,11 +163,19 @@ public abstract class CraftingScreenMixin {
 
                 if (recipeId != null) {
                     ItemStack resultStack = recipe.getResult(world.getRegistryManager()).copy();
-                    handler.setCursorStack(resultStack);
+                    ItemStack cursorStack = handler.getCursorStack();
 
-                    ClientPlayNetworking.send(new CraftItemPayload(recipeId.toString()));
+                    if (cursorStack.isEmpty() || areStacksEqualWithComponents(cursorStack, resultStack)) {
+                        if (!cursorStack.isEmpty()) {
+                            cursorStack.increment(resultStack.getCount());
+                        } else {
+                            handler.setCursorStack(resultStack);
+                        }
 
-                    cir.setReturnValue(true);
+                        ClientPlayNetworking.send(new CraftItemPayload(recipeId.toString()));
+
+                        cir.setReturnValue(true);
+                    }
                 }
             }
         }
@@ -205,6 +210,15 @@ public abstract class CraftingScreenMixin {
         vertexConsumer.vertex(matrix, x2, y1, z).color(color);
 
         context.draw();
+    }
+
+    @Unique
+    private boolean areStacksEqualWithComponents(ItemStack stack1, ItemStack stack2) {
+        if (!ItemStack.areItemsEqual(stack1, stack2)) {
+            return false;
+        }
+
+        return Objects.equals(stack1.getComponents(), stack2.getComponents());
     }
 
     @Unique

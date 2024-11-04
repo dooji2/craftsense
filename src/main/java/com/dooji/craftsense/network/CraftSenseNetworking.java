@@ -17,6 +17,7 @@ import net.minecraft.util.Identifier;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 public class CraftSenseNetworking {
@@ -44,19 +45,36 @@ public class CraftSenseNetworking {
             if (player.currentScreenHandler instanceof CraftingScreenHandler handler) {
                 RecipeInputInventory gridInventory = ((CraftingScreenHandlerAccessor) handler).getInput();
                 ItemStack resultStack = recipe.getResult(player.getServer().getRegistryManager()).copy();
+                ItemStack cursorStack = handler.getCursorStack();
+
+                if (cursorStack.isEmpty()) {
+                    handler.setCursorStack(resultStack);
+                } else if (areStacksEqualWithComponents(cursorStack, resultStack)) {
+                    cursorStack.increment(resultStack.getCount());
+                    handler.setCursorStack(cursorStack);
+                } else {
+                    return;
+                }
 
                 if (hasAllIngredients(inventory, gridInventory, recipe)) {
                     consumeIngredients(recipe, gridInventory, inventory);
 
-                    handler.setCursorStack(resultStack);
                     player.networkHandler.sendPacket(new ScreenHandlerSlotUpdateS2CPacket(
-                            handler.syncId, -1, 0, resultStack
+                            handler.syncId, -1, 0, handler.getCursorStack()
                     ));
 
                     clearGridAndSync(handler, player);
                 }
             }
         }
+    }
+
+    private static boolean areStacksEqualWithComponents(ItemStack stack1, ItemStack stack2) {
+        if (!ItemStack.areItemsEqual(stack1, stack2)) {
+            return false;
+        }
+
+        return Objects.equals(stack1.getComponents(), stack2.getComponents());
     }
 
     private static boolean hasAllIngredients(PlayerInventory inventory, RecipeInputInventory gridInventory, CraftingRecipe recipe) {
