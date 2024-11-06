@@ -10,6 +10,8 @@ import net.minecraft.recipe.RecipeEntry;
 import net.minecraft.recipe.RecipeManager;
 import net.minecraft.recipe.RecipeType;
 import net.minecraft.recipe.ShapedRecipe;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
 import net.minecraft.util.collection.DefaultedList;
 
@@ -18,12 +20,20 @@ import java.util.*;
 import static com.dooji.craftsense.manager.CategoryManager.getCategory;
 
 public class CraftingPredictor {
+    private static CraftingPredictor instance;
     private final RecipeManager recipeManager;
     private final CategoryHabitsTracker habitsConfig;
 
-    public CraftingPredictor(RecipeManager recipeManager, CategoryHabitsTracker habitsConfig) {
+    public CraftingPredictor(RecipeManager recipeManager) {
         this.recipeManager = recipeManager;
-        this.habitsConfig = habitsConfig;
+        this.habitsConfig = CategoryHabitsTracker.getInstance();
+    }
+
+    public static CraftingPredictor getInstance(RecipeManager recipeManager) {
+        if (instance == null) {
+            instance = new CraftingPredictor(recipeManager);
+        }
+        return instance;
     }
 
     public List<ItemStack> getAvailableItems(PlayerInventory playerInventory, ItemStack cursorStack) {
@@ -79,15 +89,48 @@ public class CraftingPredictor {
         CraftingRecipe bestRecipe = null;
         int bestScore = -1;
 
+        String bestCategory = null;
+        int highestCategoryCount = -1;
+        for (Map.Entry<String, Integer> entry : habitsConfig.categoryCraftCount.entrySet()) {
+            if (entry.getValue() > highestCategoryCount) {
+                bestCategory = entry.getKey();
+                highestCategoryCount = entry.getValue();
+            }
+        }
+
+        String mostCraftedItem = null;
+        int highestItemCount = -1;
+        for (Map.Entry<String, Integer> entry : habitsConfig.itemCraftCount.entrySet()) {
+            String itemName = entry.getKey();
+            if (getCategory(Registries.ITEM.get(Identifier.of(itemName))).equals(bestCategory)) {
+                int itemCount = entry.getValue();
+                if (itemCount > highestItemCount) {
+                    mostCraftedItem = itemName;
+                    highestItemCount = itemCount;
+                }
+            }
+        }
+
         for (RecipeEntry<CraftingRecipe> recipeEntry : recipes) {
             CraftingRecipe recipe = recipeEntry.value();
-            int score = calculateMatchScore(recipe, input, playerInventory, cursorStack);
+            String category = getCategory(recipe.getResult(world.getRegistryManager()).getItem());
+            String itemName = recipe.getResult(world.getRegistryManager()).getTranslationKey();
 
+            int score = calculateMatchScore(recipe, input, playerInventory, cursorStack);
             if (score <= 0) continue;
 
-            String category = getCategory(recipe.getResult(world.getRegistryManager()).getItem());
-            int habitCount = habitsConfig.getCraftCount(category);
-            score += habitCount * 2;
+            if (category.equals(bestCategory)) {
+                int itemCount = habitsConfig.getItemCraftCount(itemName);
+                int categoryCount = habitsConfig.getCraftCount(category);
+
+                if (itemName.equals(mostCraftedItem)) {
+                    score += itemCount * 5 + categoryCount * 2;
+                } else {
+                    score += itemCount * 3 + categoryCount * 2;
+                }
+            } else {
+                score += 1;
+            }
 
             if (score > bestScore) {
                 bestScore = score;

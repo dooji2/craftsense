@@ -17,9 +17,9 @@ public abstract class CraftingEventMixin {
     @Inject(method = "onCraft", at = @At("HEAD"))
     private void onCraft(ItemStack stack, World world, CallbackInfo ci) {
         if (!world.isClient) {
-            CategoryHabitsTracker habitsConfig = new CategoryHabitsTracker();
+            CategoryHabitsTracker habitsConfig = CategoryHabitsTracker.getInstance();
             String category = getCategory(stack.getItem());
-            habitsConfig.recordCraft(category);
+            habitsConfig.recordCraft(category, stack.getItem().getTranslationKey());
         }
     }
 }

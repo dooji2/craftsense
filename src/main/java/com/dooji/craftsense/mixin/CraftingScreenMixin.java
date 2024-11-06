@@ -30,6 +30,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.*;
 
+import static com.dooji.craftsense.manager.CategoryManager.getCategory;
+
 @Mixin(CraftingScreen.class)
 public abstract class CraftingScreenMixin {
 
@@ -55,8 +57,7 @@ public abstract class CraftingScreenMixin {
 
         ItemStack cursorStack = handler.getCursorStack();
 
-        CategoryHabitsTracker habitsConfig = new CategoryHabitsTracker();
-        CraftingPredictor predictor = new CraftingPredictor(world.getRecipeManager(), habitsConfig);
+        CraftingPredictor predictor = CraftingPredictor.getInstance(world.getRecipeManager());
         Optional<CraftingRecipe> optionalRecipe = predictor.suggestRecipe(input, playerInventory, cursorStack, world);
         if (optionalRecipe.isEmpty()) {
             return;
@@ -154,7 +155,7 @@ public abstract class CraftingScreenMixin {
 
             CraftingScreenHandler handler = ((CraftingScreen) (Object) this).getScreenHandler();
             RecipeInputInventory input = ((CraftingScreenHandlerAccessor) handler).getInput();
-            CraftingPredictor predictor = new CraftingPredictor(world.getRecipeManager(), new CategoryHabitsTracker());
+            CraftingPredictor predictor = CraftingPredictor.getInstance(world.getRecipeManager());
             Optional<CraftingRecipe> optionalRecipe = predictor.suggestRecipe(input, playerInventory, handler.getCursorStack(), world);
 
             if (optionalRecipe.isPresent()) {
@@ -165,17 +166,22 @@ public abstract class CraftingScreenMixin {
                     ItemStack resultStack = recipe.getResult(world.getRegistryManager()).copy();
                     ItemStack cursorStack = handler.getCursorStack();
 
-                    if (cursorStack.isEmpty() || areStacksEqualWithComponents(cursorStack, resultStack)) {
-                        if (!cursorStack.isEmpty()) {
-                            cursorStack.increment(resultStack.getCount());
-                        } else {
-                            handler.setCursorStack(resultStack);
-                        }
-
-                        ClientPlayNetworking.send(new CraftItemPayload(recipeId.toString()));
-
-                        cir.setReturnValue(true);
+                    if (cursorStack.isEmpty()) {
+                        handler.setCursorStack(resultStack);
+                    } else if (areStacksEqualWithComponents(cursorStack, resultStack) && resultStack.isStackable()) {
+                        cursorStack.increment(resultStack.getCount());
+                        handler.setCursorStack(cursorStack);
+                    } else {
+                        return;
                     }
+
+                    CategoryHabitsTracker habitsConfig = CategoryHabitsTracker.getInstance();
+                    String category = getCategory(resultStack.getItem());
+                    habitsConfig.recordCraft(category, resultStack.getItem().getTranslationKey());
+
+                    ClientPlayNetworking.send(new CraftItemPayload(recipeId.toString()));
+
+                    cir.setReturnValue(true);
                 }
             }
         }
