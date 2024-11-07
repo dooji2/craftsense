@@ -2,18 +2,17 @@ package com.dooji.craftsense.network;
 
 import com.dooji.craftsense.mixin.CraftingScreenHandlerAccessor;
 import com.dooji.craftsense.network.payloads.CraftItemPayload;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Identifier;
+import net.minecraft.recipe.CraftingRecipe;
+import net.minecraft.recipe.RecipeManager;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.RecipeInputInventory;
 import net.minecraft.item.ItemStack;
-import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket;
-import net.minecraft.recipe.CraftingRecipe;
-import net.minecraft.recipe.Ingredient;
-import net.minecraft.recipe.RecipeManager;
 import net.minecraft.screen.CraftingScreenHandler;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Identifier;
+import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,19 +21,17 @@ import java.util.Optional;
 
 public class CraftSenseNetworking {
     public static void init() {
-        PayloadTypeRegistry.playC2S().register(CraftItemPayload.ID, CraftItemPayload.CODEC);
-
-        ServerPlayNetworking.registerGlobalReceiver(CraftItemPayload.ID, (payload, context) -> {
-            context.server().execute(() -> handleCraftItemPayload(payload, context.player()));
+        ServerPlayNetworking.registerGlobalReceiver(new Identifier("craftsense", "craft_item"), (server, player, handler, buf, responseSender) -> {
+            CraftItemPayload payload = CraftItemPayload.read(buf);
+            server.execute(() -> handleCraftItemPayload(payload, player));
         });
     }
 
     private static void handleCraftItemPayload(CraftItemPayload payload, ServerPlayerEntity player) {
         RecipeManager recipeManager = player.getServer().getRecipeManager();
-        Identifier recipeId = Identifier.of(payload.recipeId());
+        Identifier recipeId = new Identifier(payload.recipeId());
 
         Optional<CraftingRecipe> recipeOptional = recipeManager.get(recipeId)
-                .map(recipeEntry -> recipeEntry.value())
                 .filter(recipe -> recipe instanceof CraftingRecipe)
                 .map(recipe -> (CraftingRecipe) recipe);
 
@@ -44,7 +41,7 @@ public class CraftSenseNetworking {
 
             if (player.currentScreenHandler instanceof CraftingScreenHandler handler) {
                 RecipeInputInventory gridInventory = ((CraftingScreenHandlerAccessor) handler).getInput();
-                ItemStack resultStack = recipe.getResult(player.getServer().getRegistryManager()).copy();
+                ItemStack resultStack = recipe.getOutput(player.getServer().getRegistryManager()).copy();
                 ItemStack cursorStack = handler.getCursorStack();
 
                 if (cursorStack.isEmpty()) {
@@ -74,7 +71,10 @@ public class CraftSenseNetworking {
             return false;
         }
 
-        return Objects.equals(stack1.getComponents(), stack2.getComponents());
+        if (stack1.hasNbt() && stack2.hasNbt()) {
+            return Objects.equals(stack1.getNbt(), stack2.getNbt());
+        }
+        return !stack1.hasNbt() && !stack2.hasNbt();
     }
 
     private static boolean hasAllIngredients(PlayerInventory inventory, RecipeInputInventory gridInventory, CraftingRecipe recipe) {
