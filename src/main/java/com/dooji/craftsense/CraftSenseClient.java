@@ -43,7 +43,7 @@ public class CraftSenseClient implements ClientModInitializer {
                 createToast("CraftSense " + (enabled ? "Enabled" : "Disabled"),
                         "CraftSense has been " + (enabled ? "enabled" : "disabled"));
 
-                client.player.playSound(enabled ? SoundEvents.BLOCK_LEVER_CLICK : SoundEvents.BLOCK_WOODEN_BUTTON_CLICK_OFF);
+                client.player.playSound(enabled ? SoundEvents.BLOCK_LEVER_CLICK : SoundEvents.BLOCK_WOODEN_BUTTON_CLICK_OFF, 1.0F, 1.0F);
             }
         });
     }
