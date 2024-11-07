@@ -14,6 +14,7 @@ import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.RecipeInputInventory;
 import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
 import net.minecraft.recipe.*;
 import net.minecraft.screen.CraftingScreenHandler;
 import net.minecraft.screen.slot.Slot;
@@ -68,7 +69,7 @@ public abstract class CraftingScreenMixin {
         int screenX = ((HandledScreenAccessor) this).getX();
         int screenY = ((HandledScreenAccessor) this).getY();
 
-        ItemStack resultStack = recipe.getResult(world.getRegistryManager());
+        ItemStack resultStack = recipe.getOutput(world.getRegistryManager());
         resultSlotX = screenX + 124;
         resultSlotY = screenY + 35;
 
@@ -163,7 +164,7 @@ public abstract class CraftingScreenMixin {
                 Identifier recipeId = findRecipeId(world.getRecipeManager(), recipe);
 
                 if (recipeId != null) {
-                    ItemStack resultStack = recipe.getResult(world.getRegistryManager()).copy();
+                    ItemStack resultStack = recipe.getOutput(world.getRegistryManager()).copy();
                     ItemStack cursorStack = handler.getCursorStack();
 
                     if (cursorStack.isEmpty()) {
@@ -179,7 +180,10 @@ public abstract class CraftingScreenMixin {
                     String category = getCategory(resultStack.getItem());
                     habitsConfig.recordCraft(category, resultStack.getItem().getTranslationKey());
 
-                    ClientPlayNetworking.send(new CraftItemPayload(recipeId.toString()));
+                    Identifier channelId = new Identifier("craftsense", "craft_item");
+                    PacketByteBuf packetBuffer = CraftItemPayload.createPacket(recipeId.toString());
+
+                    ClientPlayNetworking.send(channelId, packetBuffer);
 
                     cir.setReturnValue(true);
                 }
@@ -208,12 +212,10 @@ public abstract class CraftingScreenMixin {
         Matrix4f matrix = context.getMatrices().peek().getPositionMatrix();
         VertexConsumer vertexConsumer = context.getVertexConsumers().getBuffer(RenderLayer.getGui());
 
-        int color = (int)(alpha * 255) << 24 | 0xFFFFFF;
-
-        vertexConsumer.vertex(matrix, x1, y1, z).color(color);
-        vertexConsumer.vertex(matrix, x1, y2, z).color(color);
-        vertexConsumer.vertex(matrix, x2, y2, z).color(color);
-        vertexConsumer.vertex(matrix, x2, y1, z).color(color);
+        vertexConsumer.vertex(matrix, x1, y1, z).color(255, 255, 255, (int)(alpha * 255)).next();
+        vertexConsumer.vertex(matrix, x1, y2, z).color(255, 255, 255, (int)(alpha * 255)).next();
+        vertexConsumer.vertex(matrix, x2, y2, z).color(255, 255, 255, (int)(alpha * 255)).next();
+        vertexConsumer.vertex(matrix, x2, y1, z).color(255, 255, 255, (int)(alpha * 255)).next();
 
         context.draw();
     }
@@ -224,7 +226,10 @@ public abstract class CraftingScreenMixin {
             return false;
         }
 
-        return Objects.equals(stack1.getComponents(), stack2.getComponents());
+        if (stack1.hasNbt() && stack2.hasNbt()) {
+            return Objects.equals(stack1.getNbt(), stack2.getNbt());
+        }
+        return !stack1.hasNbt() && !stack2.hasNbt();
     }
 
     @Unique
@@ -235,12 +240,10 @@ public abstract class CraftingScreenMixin {
     @Unique
     @Nullable
     private Identifier findRecipeId(RecipeManager recipeManager, CraftingRecipe targetRecipe) {
-        Map<Identifier, RecipeEntry<?>> recipesById = ((RecipeManagerAccessor) recipeManager).getRecipesById();
-
-        for (Map.Entry<Identifier, RecipeEntry<?>> entry : recipesById.entrySet()) {
-            Recipe<?> recipe = entry.getValue().value();
-            if (recipe instanceof CraftingRecipe && recipe == targetRecipe) {
-                return entry.getKey();
+        List<? extends Recipe<?>> craftingRecipes = recipeManager.listAllOfType(RecipeType.CRAFTING);
+        for (Recipe<?> recipe : craftingRecipes) {
+            if (recipe instanceof CraftingRecipe && recipe.equals(targetRecipe)) {
+                return recipe.getId();
             }
         }
         return null;
