@@ -14,6 +14,7 @@ import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.RecipeInputInventory;
 import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
 import net.minecraft.recipe.*;
 import net.minecraft.screen.CraftingScreenHandler;
 import net.minecraft.screen.slot.Slot;
@@ -179,7 +180,10 @@ public abstract class CraftingScreenMixin {
                     String category = getCategory(resultStack.getItem());
                     habitsConfig.recordCraft(category, resultStack.getItem().getTranslationKey());
 
-                    ClientPlayNetworking.send(new CraftItemPayload(recipeId.toString()));
+                    Identifier channelId = new Identifier("craftsense", "craft_item");
+                    PacketByteBuf packetBuffer = CraftItemPayload.createPacket(recipeId.toString());
+
+                    ClientPlayNetworking.send(channelId, packetBuffer);
 
                     cir.setReturnValue(true);
                 }
@@ -208,12 +212,10 @@ public abstract class CraftingScreenMixin {
         Matrix4f matrix = context.getMatrices().peek().getPositionMatrix();
         VertexConsumer vertexConsumer = context.getVertexConsumers().getBuffer(RenderLayer.getGui());
 
-        int color = (int)(alpha * 255) << 24 | 0xFFFFFF;
-
-        vertexConsumer.vertex(matrix, x1, y1, z).color(color);
-        vertexConsumer.vertex(matrix, x1, y2, z).color(color);
-        vertexConsumer.vertex(matrix, x2, y2, z).color(color);
-        vertexConsumer.vertex(matrix, x2, y1, z).color(color);
+        vertexConsumer.vertex(matrix, x1, y1, z).color(255, 255, 255, (int)(alpha * 255)).next();
+        vertexConsumer.vertex(matrix, x1, y2, z).color(255, 255, 255, (int)(alpha * 255)).next();
+        vertexConsumer.vertex(matrix, x2, y2, z).color(255, 255, 255, (int)(alpha * 255)).next();
+        vertexConsumer.vertex(matrix, x2, y1, z).color(255, 255, 255, (int)(alpha * 255)).next();
 
         context.draw();
     }
@@ -224,7 +226,10 @@ public abstract class CraftingScreenMixin {
             return false;
         }
 
-        return Objects.equals(stack1.getComponents(), stack2.getComponents());
+        if (stack1.hasNbt() && stack2.hasNbt()) {
+            return Objects.equals(stack1.getNbt(), stack2.getNbt());
+        }
+        return !stack1.hasNbt() && !stack2.hasNbt();
     }
 
     @Unique

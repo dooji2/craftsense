@@ -4,12 +4,7 @@ import com.dooji.craftsense.manager.CategoryHabitsTracker;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.RecipeInputInventory;
 import net.minecraft.item.ItemStack;
-import net.minecraft.recipe.CraftingRecipe;
-import net.minecraft.recipe.Ingredient;
-import net.minecraft.recipe.RecipeEntry;
-import net.minecraft.recipe.RecipeManager;
-import net.minecraft.recipe.RecipeType;
-import net.minecraft.recipe.ShapedRecipe;
+import net.minecraft.recipe.*;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
@@ -72,16 +67,18 @@ public class CraftingPredictor {
     }
 
     private boolean itemsAndComponentsMatch(ItemStack stack, ItemStack itemToMatch) {
-
         if (!ItemStack.areItemsEqual(stack, itemToMatch)) {
             return false;
         }
 
-        return Objects.equals(stack.getComponents(), itemToMatch.getComponents());
+        if (stack.hasNbt() && itemToMatch.hasNbt()) {
+            return Objects.equals(stack.getNbt(), itemToMatch.getNbt());
+        }
+        return !stack.hasNbt() && !itemToMatch.hasNbt();
     }
 
     public Optional<CraftingRecipe> suggestRecipe(RecipeInputInventory input, PlayerInventory playerInventory, ItemStack cursorStack, World world) {
-        if (!CraftSense.configManager.isEnabled() || isGridEmpty(input) || recipeManager.getFirstMatch(RecipeType.CRAFTING, input.createRecipeInput(), world).isPresent()) {
+        if (!CraftSense.configManager.isEnabled() || isGridEmpty(input) || recipeManager.getFirstMatch(RecipeType.CRAFTING, input, world).isPresent()) {
             return Optional.empty();
         }
 
@@ -102,7 +99,7 @@ public class CraftingPredictor {
         int highestItemCount = -1;
         for (Map.Entry<String, Integer> entry : habitsConfig.itemCraftCount.entrySet()) {
             String itemName = entry.getKey();
-            if (getCategory(Registries.ITEM.get(Identifier.of(itemName))).equals(bestCategory)) {
+            if (getCategory(Registries.ITEM.get(new Identifier(itemName))).equals(bestCategory)) {
                 int itemCount = entry.getValue();
                 if (itemCount > highestItemCount) {
                     mostCraftedItem = itemName;
