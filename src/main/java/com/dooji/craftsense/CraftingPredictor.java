@@ -1,6 +1,8 @@
 package com.dooji.craftsense;
 
 import com.dooji.craftsense.manager.CategoryHabitsTracker;
+import com.dooji.craftsense.manager.CraftSenseTracker;
+
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.RecipeInputInventory;
 import net.minecraft.item.ItemStack;
@@ -131,6 +133,17 @@ public class CraftingPredictor {
             if (score > bestScore) {
                 bestScore = score;
                 bestRecipe = recipe;
+            }
+        }
+
+        if (bestRecipe != null && getCategory(bestRecipe.getResult(world.getRegistryManager()).getItem()).equals("TOOL")) {
+            boolean hasWeapon = playerInventoryContainsWeapon(playerInventory);
+
+            if (CraftSenseTracker.isPrioritizingCombatItems() && !hasWeapon) {
+                Optional<CraftingRecipe> combatRecipe = suggestCombatRecipe(recipes, input, playerInventory, cursorStack, world);
+                if (combatRecipe.isPresent()) {
+                    return combatRecipe;
+                }
             }
         }
 
@@ -317,5 +330,28 @@ public class CraftingPredictor {
         }
 
         return score;
+    }
+
+    private boolean playerInventoryContainsWeapon(PlayerInventory playerInventory) {
+        for (ItemStack stack : playerInventory.main) {
+            if (!stack.isEmpty() && (stack.getItem().getTranslationKey().toUpperCase().contains("SWORD") || stack.getItem().getTranslationKey().toUpperCase().contains("_AXE"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Optional<CraftingRecipe> suggestCombatRecipe(List<RecipeEntry<CraftingRecipe>> recipes, RecipeInputInventory input, PlayerInventory playerInventory, ItemStack cursorStack, World world) {
+        for (RecipeEntry<CraftingRecipe> recipeEntry : recipes) {
+            CraftingRecipe recipe = recipeEntry.value();
+            String resultName = recipe.getResult(world.getRegistryManager()).getTranslationKey().toUpperCase();
+            if (resultName.contains("SWORD") || resultName.contains("_AXE") || resultName.contains("SHIELD")) {
+                int score = calculateMatchScore(recipe, input, playerInventory, cursorStack);
+                if (score > 0) {
+                    return Optional.of(recipe);
+                }
+            }
+        }
+        return Optional.empty();
     }
 }
