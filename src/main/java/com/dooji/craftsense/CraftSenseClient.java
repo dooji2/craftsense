@@ -2,6 +2,7 @@ package com.dooji.craftsense;
 
 import com.dooji.craftsense.manager.CategoryGenerator;
 import com.dooji.craftsense.manager.ConfigurationManager;
+import com.dooji.craftsense.manager.CraftSenseTracker;
 import com.dooji.craftsense.ui.CustomToast;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
@@ -27,6 +28,7 @@ public class CraftSenseClient implements ClientModInitializer {
                 hasEnteredWorld = true;
 
                 ConfigurationManager configManager = CraftSense.configManager;
+                CraftSenseTracker.checkPlayerConditions();
 
                 if (configManager.isFirstTime()) {
                     String toggleKeyText = CraftSenseKeyBindings.toggleKey.getBoundKeyLocalizedText().getString();
