@@ -136,7 +136,7 @@ public class CraftingPredictor {
             }
         }
 
-        if (bestRecipe != null && getCategory(bestRecipe.getResult(world.getRegistryManager()).getItem()).equals("TOOL")) {
+        if (bestRecipe != null && getCategory(bestRecipe.getOutput(world.getRegistryManager()).getItem()).equals("TOOL")) {
             boolean hasWeapon = playerInventoryContainsWeapon(playerInventory);
 
             if (CraftSenseTracker.isPrioritizingCombatItems() && !hasWeapon) {
@@ -341,10 +341,11 @@ public class CraftingPredictor {
         return false;
     }
 
-    private Optional<CraftingRecipe> suggestCombatRecipe(List<RecipeEntry<CraftingRecipe>> recipes, RecipeInputInventory input, PlayerInventory playerInventory, ItemStack cursorStack, World world) {
-        for (RecipeEntry<CraftingRecipe> recipeEntry : recipes) {
-            CraftingRecipe recipe = recipeEntry.value();
-            String resultName = recipe.getResult(world.getRegistryManager()).getTranslationKey().toUpperCase();
+    private Optional<CraftingRecipe> suggestCombatRecipe(List<CraftingRecipe> recipes, RecipeInputInventory input, PlayerInventory playerInventory, ItemStack cursorStack, World world) {
+        for (CraftingRecipe recipe : recipes) {
+            ItemStack resultStack = recipe.craft(input, world.getRegistryManager());
+            String resultName = resultStack.getTranslationKey().toUpperCase();
+    
             if (resultName.contains("SWORD") || resultName.contains("_AXE") || resultName.contains("SHIELD")) {
                 int score = calculateMatchScore(recipe, input, playerInventory, cursorStack);
                 if (score > 0) {
@@ -353,5 +354,5 @@ public class CraftingPredictor {
             }
         }
         return Optional.empty();
-    }
+    }    
 }
