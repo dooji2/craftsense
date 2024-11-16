@@ -72,7 +72,7 @@ public abstract class CraftingScreenMixin {
         resultSlotX = screenX + 124;
         resultSlotY = screenY + 35;
 
-        renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f);
+        renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f, mouseX, mouseY);
 
         if (recipe instanceof ShapedRecipe shapedRecipe) {
             int recipeWidth = shapedRecipe.getWidth();
@@ -111,7 +111,7 @@ public abstract class CraftingScreenMixin {
                         ItemStack[] matchingStacks = ingredient.getMatchingStacks();
                         if (matchingStacks.length > 0) {
                             ItemStack ghostStack = matchingStacks[0];
-                            renderGhostItem(context, ghostStack, slotX, slotY, 0.2f);
+                            renderGhostItem(context, ghostStack, slotX, slotY, 0.2f, mouseX, mouseY);
                         }
                     }
                 }
@@ -138,7 +138,7 @@ public abstract class CraftingScreenMixin {
                         Slot slot = handler.slots.get(i + 1);
                         int slotX = screenX + slot.x;
                         int slotY = screenY + slot.y;
-                        renderGhostItem(context, ghostStack, slotX, slotY, 0.2f);
+                        renderGhostItem(context, ghostStack, slotX, slotY, 0.2f, mouseX, mouseY);
                     }
                     ingredientIndex++;
                 }
@@ -188,7 +188,7 @@ public abstract class CraftingScreenMixin {
     }
 
     @Unique
-    private void renderGhostItem(DrawContext context, ItemStack stack, int x, int y, float opacity) {
+    private void renderGhostItem(DrawContext context, ItemStack stack, int x, int y, float opacity, int mouseX, int mouseY) {
         context.getMatrices().push();
         context.getMatrices().translate(0, 0, -100);
 
@@ -198,6 +198,10 @@ public abstract class CraftingScreenMixin {
         context.drawItemWithoutEntity(stack, x, y);
 
         drawTransparentRectangle(context, x, y, x + 16, y + 16, 200, opacity);
+
+        if (mouseX >= x && mouseX < x + 16 && mouseY >= y && mouseY < y + 16) {
+            context.drawTooltip(MinecraftClient.getInstance().textRenderer, stack.getName(), mouseX, mouseY);
+        }
 
         RenderSystem.disableBlend();
         context.getMatrices().pop();
