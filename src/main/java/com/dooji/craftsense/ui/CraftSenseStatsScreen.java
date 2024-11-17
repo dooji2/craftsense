@@ -157,7 +157,9 @@ public class CraftSenseStatsScreen extends Screen {
     private void updateButtonStates() {
         prevButton.active = currentPage > 0;
         nextButton.active = currentPage < maxPages - 1;
-        pageIndicator = Text.translatable("screen.craftsense.stats.page", currentPage + 1, maxPages);
+
+        int displayMaxPages = (maxPages == 0) ? 1 : maxPages;
+        pageIndicator = Text.translatable("screen.craftsense.stats.page", currentPage + 1, displayMaxPages);
     }
 
     @Override
