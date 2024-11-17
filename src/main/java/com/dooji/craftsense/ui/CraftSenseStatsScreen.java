@@ -116,7 +116,6 @@ public class CraftSenseStatsScreen extends Screen {
 
     @Override
     protected void init() {
-        int padding = 10;
         int paginationButtonY = 50;
 
         prevButton = ButtonWidget.builder(
