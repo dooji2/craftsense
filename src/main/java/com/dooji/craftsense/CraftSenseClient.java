@@ -3,6 +3,7 @@ package com.dooji.craftsense;
 import com.dooji.craftsense.manager.CategoryGenerator;
 import com.dooji.craftsense.manager.ConfigurationManager;
 import com.dooji.craftsense.manager.CraftSenseTracker;
+import com.dooji.craftsense.ui.CraftSenseStatsScreen;
 import com.dooji.craftsense.ui.CustomToast;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
@@ -46,6 +47,12 @@ public class CraftSenseClient implements ClientModInitializer {
                         "CraftSense has been " + (enabled ? "enabled" : "disabled"));
 
                 client.player.playSound(enabled ? SoundEvents.BLOCK_LEVER_CLICK : SoundEvents.BLOCK_WOODEN_BUTTON_CLICK_OFF, 1.0F, 1.0F);
+            }
+
+            while (CraftSenseKeyBindings.openStatsKey.wasPressed()) {
+                if (client.currentScreen == null) {
+                    client.setScreen(new CraftSenseStatsScreen());
+                }
             }
         });
     }
