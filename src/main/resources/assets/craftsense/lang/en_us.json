@@ -1,4 +1,11 @@
 {
   "key.craftsense.toggle": "Toggle CraftSense",
-  "category.craftsense": "CraftSense"
+  "key.craftsense.open_stats": "Open CraftSense Statistics",
+  "category.craftsense": "CraftSense",
+  "screen.craftsense.stats": "CraftSense Statistics",
+  "screen.craftsense.stats.done": "Done",
+  "screen.craftsense.stats.previous": "< Previous",
+  "screen.craftsense.stats.next": "Next >",
+  "screen.craftsense.stats.page": "Page %d / %d",
+  "tooltip.craftsense.no_items_found": "No items found in this category."
 }
