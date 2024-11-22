@@ -1,6 +1,6 @@
 # CraftSense
 
-**CraftSense** is a Minecraft mod that helps players with crafting by predicting and suggesting crafting recipes based on their previous crafting habits. The mod analyzes items in the player’s inventory, recommends possible crafting recipes and allows for instant crafting by simply clicking on the suggested output to make the crafting process faster and easier. It can be enabled or disabled with a customizable keybind (**K** by default), allowing you to easily toggle it on or off.
+**CraftSense** is a Minecraft mod that helps players with crafting by predicting and suggesting crafting recipes based on their previous crafting habits. The mod analyzes items in the player’s inventory, recommends possible crafting recipes and allows for instant crafting by simply clicking on the suggested output to make the crafting process faster and easier. It can be enabled or disabled with a customizable keybind (`K` by default), allowing you to easily toggle it on or off.
 
 **Requires Fabric API. Also compatible with Forge and NeoForge, using [Sinytra Connector](https://modrinth.com/mod/connector), requires [Forgified Fabric API](https://modrinth.com/mod/forgified-fabric-api).**
 
@@ -12,3 +12,5 @@
 - **Category-Based Tracking**: CraftSense organizes items by category, tracking your most crafted items to make better predictions in the future.
 - **On-Screen Display**: Ghost items are shown in the crafting grid to guide you through suggested recipes, enhancing the crafting experience by visually indicating what can be created.
 - **Supports Other Mods**: Works with recipes from other mods.
+- **Context Awareness**: If your health is low and you have no weapons but have the required materials, CraftSense will prioritize weapon suggestions over your crafting habits.
+- **Crafting Statistics Screen**: Press `J` (default) to access the statistics screen displaying your crafting patterns. Hover over graph elements to view detailed data on crafted items within each category.
