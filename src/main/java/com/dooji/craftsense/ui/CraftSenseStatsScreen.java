@@ -217,7 +217,7 @@ public class CraftSenseStatsScreen extends Screen {
 
             context.drawCenteredTextWithShadow(
                     this.textRenderer,
-                    Text.literal(String.valueOf(count)),
+                    Text.literal(formatNumberShorthand(count)),
                     xOffset + BAR_WIDTH / 2,
                     graphY + (graphHeight - barHeight) - 10,
                     0xFFFFFF
@@ -236,7 +236,7 @@ public class CraftSenseStatsScreen extends Screen {
                                 .findFirst()
                                 .ifPresent(item -> {
                                     tooltipItemStacks.add(item.getDefaultStack());
-                                    tooltipItemTexts.add(Text.literal(item.getName().getString() + " - " + itemEntry.getValue()));
+                                    tooltipItemTexts.add(Text.literal(item.getName().getString() + " - " + formatNumberShorthand(itemEntry.getValue())));
                                 });
                     }
                 } else {
@@ -266,6 +266,17 @@ public class CraftSenseStatsScreen extends Screen {
         }
 
         return ellipsis;
+    }
+
+    private String formatNumberShorthand(int number) {
+        if (number >= 1_000_000_000) {
+            return String.format("%.1fB", number / 1_000_000_000.0);
+        } else if (number >= 1_000_000) {
+            return String.format("%.1fM", number / 1_000_000.0);
+        } else if (number >= 1_000) {
+            return String.format("%.1fK", number / 1_000.0);
+        }
+        return String.valueOf(number);
     }
 
     @Override
