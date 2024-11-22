@@ -358,4 +358,27 @@ public class CraftingPredictor {
         }
         return Optional.empty();
     }
+
+    public Optional<CraftingRecipe> suggestLastCraftedItem(RecipeInputInventory input, PlayerInventory playerInventory, ItemStack cursorStack, World world) {
+        String lastCraftedItem = CategoryHabitsTracker.getInstance().getLastCraftedItem();
+        if (lastCraftedItem == null || !isGridEmpty(input)) {
+            return Optional.empty();
+        }
+
+        List<RecipeEntry<CraftingRecipe>> recipes = recipeManager.listAllOfType(RecipeType.CRAFTING);
+
+        for (RecipeEntry<CraftingRecipe> recipeEntry : recipes) {
+            CraftingRecipe recipe = recipeEntry.value();
+            String resultTranslationKey = recipe.getResult(world.getRegistryManager()).getTranslationKey();
+
+            if (resultTranslationKey.equals(lastCraftedItem)) {
+                int score = calculateMatchScore(recipe, input, playerInventory, cursorStack);
+                if (score > 0) {
+                    return Optional.of(recipe);
+                }
+            }
+        }
+
+        return Optional.empty();
+    }
 }
