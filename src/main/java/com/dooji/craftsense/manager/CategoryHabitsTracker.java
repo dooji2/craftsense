@@ -21,10 +21,12 @@ public class CategoryHabitsTracker {
 
     public Map<String, Integer> categoryCraftCount;
     public Map<String, Integer> itemCraftCount;
+    public String lastCraftedItem;
 
     public CategoryHabitsTracker() {
         categoryCraftCount = new HashMap<>();
         itemCraftCount = new HashMap<>();
+        lastCraftedItem = null;
         load();
     }
 
@@ -40,21 +42,37 @@ public class CategoryHabitsTracker {
             Files.createDirectories(HABITS_PATH.getParent());
             if (Files.exists(HABITS_PATH)) {
                 try (FileReader reader = new FileReader(HABITS_PATH.toFile())) {
-                    Map<String, Map<String, Integer>> data = GSON.fromJson(reader, new TypeToken<Map<String, Map<String, Integer>>>() {}.getType());
+                    Map<String, Object> data = GSON.fromJson(reader, new TypeToken<Map<String, Object>>() {}.getType());
 
-                    if (data != null && data.containsKey("categoryCraftCount") && data.containsKey("itemCraftCount")) {
-                        categoryCraftCount = data.get("categoryCraftCount");
-                        itemCraftCount = data.get("itemCraftCount");
-                    } else {
+                    if (data != null) {
+                        Map<String, Number> rawCategoryCraftCount = (Map<String, Number>) data.getOrDefault("categoryCraftCount", new HashMap<>());
                         categoryCraftCount = new HashMap<>();
+                        for (Map.Entry<String, Number> entry : rawCategoryCraftCount.entrySet()) {
+                            categoryCraftCount.put(entry.getKey(), entry.getValue().intValue());
+                        }
+
+                        Map<String, Number> rawItemCraftCount = (Map<String, Number>) data.getOrDefault("itemCraftCount", new HashMap<>());
                         itemCraftCount = new HashMap<>();
+                        for (Map.Entry<String, Number> entry : rawItemCraftCount.entrySet()) {
+                            itemCraftCount.put(entry.getKey(), entry.getValue().intValue());
+                        }
+
+                        lastCraftedItem = (String) data.getOrDefault("lastCraftedItem", null);
                     }
-                } catch (JsonSyntaxException e) {
+                } catch (JsonSyntaxException | ClassCastException e) {
                     try (FileReader legacyReader = new FileReader(HABITS_PATH.toFile())) {
-                        categoryCraftCount = GSON.fromJson(legacyReader, new TypeToken<Map<String, Integer>>() {}.getType());
+                        Map<String, Number> rawCategoryCraftCount = GSON.fromJson(legacyReader, new TypeToken<Map<String, Number>>() {}.getType());
+                        categoryCraftCount = new HashMap<>();
+                        for (Map.Entry<String, Number> entry : rawCategoryCraftCount.entrySet()) {
+                            categoryCraftCount.put(entry.getKey(), entry.getValue().intValue());
+                        }
                         itemCraftCount = new HashMap<>();
+                        lastCraftedItem = null;
                     } catch (IOException innerException) {
                         innerException.printStackTrace();
+                        categoryCraftCount = new HashMap<>();
+                        itemCraftCount = new HashMap<>();
+                        lastCraftedItem = null;
                     }
                 }
             } else {
@@ -67,9 +85,10 @@ public class CategoryHabitsTracker {
 
     public void save() {
         try (FileWriter writer = new FileWriter(HABITS_PATH.toFile())) {
-            Map<String, Map<String, Integer>> data = new HashMap<>();
+            Map<String, Object> data = new HashMap<>();
             data.put("categoryCraftCount", categoryCraftCount);
             data.put("itemCraftCount", itemCraftCount);
+            data.put("lastCraftedItem", lastCraftedItem);
             GSON.toJson(data, writer);
         } catch (IOException e) {
             e.printStackTrace();
@@ -79,6 +98,7 @@ public class CategoryHabitsTracker {
     public void recordCraft(String itemCategory, String itemName) {
         categoryCraftCount.put(itemCategory, categoryCraftCount.getOrDefault(itemCategory, 0) + 1);
         itemCraftCount.put(itemName, itemCraftCount.getOrDefault(itemName, 0) + 1);
+        lastCraftedItem = itemName;
         save();
     }
 
@@ -88,5 +108,9 @@ public class CategoryHabitsTracker {
 
     public int getItemCraftCount(String itemName) {
         return itemCraftCount.getOrDefault(itemName, 0);
+    }
+
+    public String getLastCraftedItem() {
+        return lastCraftedItem;
     }
 }
