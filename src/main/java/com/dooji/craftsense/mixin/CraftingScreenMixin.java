@@ -44,6 +44,15 @@ public abstract class CraftingScreenMixin {
     @Unique
     private int resultSlotY;
 
+    @Unique
+    private String lastGridHash = "";
+
+    @Unique
+    private Optional<CraftingRecipe> cachedLastCraftedRecipe = Optional.empty();
+
+    @Unique
+    private Optional<CraftingRecipe> cachedSuggestedRecipe = Optional.empty();
+
     @Inject(method = "render", at = @At("TAIL"))
     private void renderCraftingPrediction(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!CraftSense.configManager.isEnabled()) {
@@ -62,9 +71,21 @@ public abstract class CraftingScreenMixin {
 
         CraftingPredictor predictor = CraftingPredictor.getInstance(world.getRecipeManager());
 
-        Optional<CraftingRecipe> lastCraftedRecipe = predictor.suggestLastCraftedItem(input, playerInventory, cursorStack, world);
-        if (lastCraftedRecipe.isPresent()) {
-            CraftingRecipe recipe = lastCraftedRecipe.get();
+        String currentGridHash = calculateGridHash(input);
+
+        if (!currentGridHash.equals(lastGridHash)) {
+            lastGridHash = currentGridHash;
+
+            cachedLastCraftedRecipe = predictor.suggestLastCraftedItem(input, playerInventory, cursorStack, world);
+            if (cachedLastCraftedRecipe.isEmpty()) {
+                cachedSuggestedRecipe = predictor.suggestRecipe(input, playerInventory, cursorStack, world);
+            } else {
+                cachedSuggestedRecipe = Optional.empty();
+            }
+        }
+
+        if (cachedLastCraftedRecipe.isPresent()) {
+            CraftingRecipe recipe = cachedLastCraftedRecipe.get();
             ItemStack resultStack = recipe.getOutput(world.getRegistryManager());
             int screenX = ((HandledScreenAccessor) this).getX();
             int screenY = ((HandledScreenAccessor) this).getY();
@@ -74,12 +95,11 @@ public abstract class CraftingScreenMixin {
             return;
         }
 
-        Optional<CraftingRecipe> optionalRecipe = predictor.suggestRecipe(input, playerInventory, cursorStack, world);
-        if (optionalRecipe.isEmpty()) {
+        if (cachedSuggestedRecipe.isEmpty()) {
             return;
         }
 
-        CraftingRecipe recipe = optionalRecipe.get();
+        CraftingRecipe recipe = cachedSuggestedRecipe.get();
 
         int screenX = ((HandledScreenAccessor) this).getX();
         int screenY = ((HandledScreenAccessor) this).getY();
@@ -274,5 +294,19 @@ public abstract class CraftingScreenMixin {
             }
         }
         return null;
+    }
+
+    @Unique
+    private String calculateGridHash(RecipeInputInventory input) {
+        StringBuilder hashBuilder = new StringBuilder();
+        for (int i = 0; i < input.size(); i++) {
+            ItemStack stack = input.getStack(i);
+            if (stack.isEmpty()) {
+                hashBuilder.append("-");
+            } else {
+                hashBuilder.append(stack.getTranslationKey()).append(":").append(stack.getCount()).append(",");
+            }
+        }
+        return hashBuilder.toString();
     }
 }
