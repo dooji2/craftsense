@@ -18,6 +18,8 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.recipe.*;
 import net.minecraft.screen.CraftingScreenHandler;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
@@ -59,6 +61,20 @@ public abstract class CraftingScreenMixin {
         ItemStack cursorStack = handler.getCursorStack();
 
         CraftingPredictor predictor = CraftingPredictor.getInstance(world.getRecipeManager());
+
+        Optional<CraftingRecipe> lastCraftedRecipe = predictor.suggestLastCraftedItem(input, playerInventory, cursorStack, world);
+        if (lastCraftedRecipe.isPresent()) {
+            CraftingRecipe recipe = lastCraftedRecipe.get();
+            ItemStack resultStack = recipe.getResult(world.getRegistryManager());
+            int screenX = ((HandledScreenAccessor) this).getX();
+            int screenY = ((HandledScreenAccessor) this).getY();
+            resultSlotX = screenX + 124;
+            resultSlotY = screenY + 35;
+
+            renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f, mouseX, mouseY, true);
+            return;
+        }
+
         Optional<CraftingRecipe> optionalRecipe = predictor.suggestRecipe(input, playerInventory, cursorStack, world);
         if (optionalRecipe.isEmpty()) {
             return;
@@ -73,7 +89,7 @@ public abstract class CraftingScreenMixin {
         resultSlotX = screenX + 124;
         resultSlotY = screenY + 35;
 
-        renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f);
+        renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f, mouseX, mouseY, false);
 
         if (recipe instanceof ShapedRecipe shapedRecipe) {
             int recipeWidth = shapedRecipe.getWidth();
@@ -112,7 +128,7 @@ public abstract class CraftingScreenMixin {
                         ItemStack[] matchingStacks = ingredient.getMatchingStacks();
                         if (matchingStacks.length > 0) {
                             ItemStack ghostStack = matchingStacks[0];
-                            renderGhostItem(context, ghostStack, slotX, slotY, 0.2f);
+                            renderGhostItem(context, ghostStack, slotX, slotY, 0.2f, mouseX, mouseY, false);
                         }
                     }
                 }
@@ -139,7 +155,7 @@ public abstract class CraftingScreenMixin {
                         Slot slot = handler.slots.get(i + 1);
                         int slotX = screenX + slot.x;
                         int slotY = screenY + slot.y;
-                        renderGhostItem(context, ghostStack, slotX, slotY, 0.2f);
+                        renderGhostItem(context, ghostStack, slotX, slotY, 0.2f, mouseX, mouseY, false);
                     }
                     ingredientIndex++;
                 }
@@ -157,7 +173,11 @@ public abstract class CraftingScreenMixin {
             CraftingScreenHandler handler = ((CraftingScreen) (Object) this).getScreenHandler();
             RecipeInputInventory input = ((CraftingScreenHandlerAccessor) handler).getInput();
             CraftingPredictor predictor = CraftingPredictor.getInstance(world.getRecipeManager());
-            Optional<CraftingRecipe> optionalRecipe = predictor.suggestRecipe(input, playerInventory, handler.getCursorStack(), world);
+            Optional<CraftingRecipe> lastCraftedRecipe = predictor.suggestLastCraftedItem(input, playerInventory, handler.getCursorStack(), world);
+
+            Optional<CraftingRecipe> optionalRecipe = lastCraftedRecipe.isPresent()
+                    ? lastCraftedRecipe
+                    : predictor.suggestRecipe(input, playerInventory, handler.getCursorStack(), world);
 
             if (optionalRecipe.isPresent()) {
                 CraftingRecipe recipe = optionalRecipe.get();
@@ -192,7 +212,7 @@ public abstract class CraftingScreenMixin {
     }
 
     @Unique
-    private void renderGhostItem(DrawContext context, ItemStack stack, int x, int y, float opacity) {
+    private void renderGhostItem(DrawContext context, ItemStack stack, int x, int y, float opacity, int mouseX, int mouseY, boolean isLastCrafted) {
         context.getMatrices().push();
         context.getMatrices().translate(0, 0, -100);
 
@@ -202,6 +222,15 @@ public abstract class CraftingScreenMixin {
         context.drawItemWithoutEntity(stack, x, y);
 
         drawTransparentRectangle(context, x, y, x + 16, y + 16, 200, opacity);
+
+        if (mouseX >= x && mouseX < x + 16 && mouseY >= y && mouseY < y + 16) {
+            List<Text> tooltip = new ArrayList<>();
+            tooltip.add(stack.getName());
+            if (isLastCrafted) {
+                tooltip.add(Text.translatable("tooltip.craftsense.last_crafted_item").formatted(Formatting.GRAY, Formatting.ITALIC));
+            }
+            context.drawTooltip(MinecraftClient.getInstance().textRenderer, tooltip, mouseX, mouseY);
+        }
 
         RenderSystem.disableBlend();
         context.getMatrices().pop();
