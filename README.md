@@ -9,6 +9,7 @@
 ## Features
 
 - **Crafting Prediction**: Get suggestions for crafting recipes based on available items and recent crafting patterns. Similar to text autocomplete, as you place items in the crafting grid, CraftSense will analyze your inventory and provide real-time suggestions for crafting outcomes. You can simply click on the suggested recipe output item to automatically craft it, receiving the item in your inventory.
+- **Remembers Your Last Craft**: CraftSense remembers the last item you crafted. If you have the materials, it automatically appears in the crafting output slot, ready for instant one-click crafting.
 - **Category-Based Tracking**: CraftSense organizes items by category, tracking your most crafted items to make better predictions in the future.
 - **On-Screen Display**: Ghost items are shown in the crafting grid to guide you through suggested recipes, enhancing the crafting experience by visually indicating what can be created.
 - **Supports Other Mods**: Works with recipes from other mods.
