@@ -86,7 +86,7 @@ public class CraftingPredictor {
             return Optional.empty();
         }
 
-        String inputHash = calculateInputHash(input);
+        String inputHash = calculateInputHash(input, playerInventory, cursorStack);
 
         if (recipeCache.containsKey(inputHash)) {
             return recipeCache.get(inputHash);
@@ -157,19 +157,18 @@ public class CraftingPredictor {
             if (CraftSenseTracker.isPrioritizingCombatItems() && !hasWeapon) {
                 Optional<CraftingRecipe> combatRecipe = suggestCombatRecipe(filteredRecipes, input, playerInventory, cursorStack, world);
                 if (combatRecipe.isPresent()) {
+                    recipeCache.put(inputHash, combatRecipe);
                     return combatRecipe;
                 }
             }
         }
 
         Optional<CraftingRecipe> result = bestRecipe != null ? Optional.of(bestRecipe) : Optional.empty();
-
         recipeCache.put(inputHash, result);
-
         return result;
     }
 
-    private boolean hasRequiredIngredients(CraftingRecipe recipe, List<ItemStack> availableItems) {
+    public boolean hasRequiredIngredients(CraftingRecipe recipe, List<ItemStack> availableItems) {
         List<ItemStack> tempAvailableItems = copyItemStacks(availableItems);
 
         for (Ingredient ingredient : recipe.getIngredients()) {
@@ -231,15 +230,18 @@ public class CraftingPredictor {
         return score;
     }
 
-    private String calculateInputHash(RecipeInputInventory input) {
+    public String calculateInputHash(RecipeInputInventory input, PlayerInventory playerInventory, ItemStack cursorStack) {
         StringBuilder hashBuilder = new StringBuilder();
         for (int i = 0; i < input.size(); i++) {
             ItemStack stack = input.getStack(i);
-            if (stack.isEmpty()) {
-                hashBuilder.append("-");
-            } else {
-                hashBuilder.append(stack.getTranslationKey()).append(":").append(stack.getCount()).append(",");
-            }
+            hashBuilder.append(stack.isEmpty() ? "-" : stack.getTranslationKey() + ":" + stack.getCount()).append(",");
+        }
+
+        for (ItemStack stack : playerInventory.main) {
+            hashBuilder.append(stack.isEmpty() ? "-" : stack.getTranslationKey() + ":" + stack.getCount()).append(",");
+        }
+        if (!cursorStack.isEmpty()) {
+            hashBuilder.append(cursorStack.getTranslationKey()).append(":").append(cursorStack.getCount());
         }
         return hashBuilder.toString();
     }
