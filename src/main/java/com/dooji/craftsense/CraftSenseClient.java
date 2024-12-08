@@ -4,13 +4,12 @@ import com.dooji.craftsense.manager.CategoryGenerator;
 import com.dooji.craftsense.manager.ConfigurationManager;
 import com.dooji.craftsense.manager.CraftSenseTracker;
 import com.dooji.craftsense.ui.CraftSenseStatsScreen;
-import com.dooji.craftsense.ui.CustomToast;
+import com.dooji.omnilib.OmnilibClient;
+
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.toast.ToastManager;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -58,26 +57,24 @@ public class CraftSenseClient implements ClientModInitializer {
     }
 
     public static void createToast(String titleKey, String messageKey) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        ToastManager toastManager = client.getToastManager();
+        Text title = Text.translatable(titleKey);
+        Text description = Text.translatable(messageKey);
+        Identifier iconTexture = CraftSense.configManager.isEnabled()
+                ? Identifier.of("minecraft", "textures/block/redstone_lamp_on.png")
+                : Identifier.of("minecraft", "textures/block/redstone_lamp.png");
 
-        Identifier backgroundTexture = Identifier.of(CraftSense.MOD_ID, "textures/gui/toast.png");
-        Identifier iconTexture = CraftSense.configManager.isEnabled() ?
-                Identifier.of("minecraft", "textures/block/redstone_lamp_on.png") :
-                Identifier.of("minecraft", "textures/block/redstone_lamp.png");
-
-        CustomToast customToast = new CustomToast(
-                Text.translatable(titleKey),
-                Text.translatable(messageKey),
-                5000,
-                0xFFFFFF,
-                0xAAAAAA,
-                backgroundTexture,
-                iconTexture,
-                16,
-                170,
-                32
+        OmnilibClient.showToast(
+            title,
+            description,
+            5000,
+            0xFFFFFF,
+            0xAAAAAA,
+            null,
+            iconTexture,
+            null,
+            16,
+            170,
+            32
         );
-        toastManager.add(customToast);
     }
 }
