@@ -2,6 +2,8 @@ package com.dooji.craftsense.ui;
 
 import com.dooji.craftsense.manager.CategoryHabitsTracker;
 import com.dooji.craftsense.manager.CategoryManager;
+import com.dooji.omnilib.OmnilibClient;
+
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.screen.Screen;
@@ -9,6 +11,7 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
+import net.minecraft.util.math.ColorHelper.Argb;
 import net.minecraft.client.gui.DrawContext;
 
 import java.util.*;
@@ -251,8 +254,19 @@ public class CraftSenseStatsScreen extends Screen {
         }
 
         if (showTooltip && tooltipCategory != null) {
-            CustomTooltip customTooltip = new CustomTooltip(tooltipCategory, tooltipItemStacks, tooltipItemTexts);
-            customTooltip.render(context, this.textRenderer, mouseX + 10, mouseY + 10);
+            OmnilibClient.showTooltip(
+                    context,
+                    this.textRenderer,
+                    tooltipCategory,
+                    tooltipItemStacks,
+                    tooltipItemTexts,
+                    Argb.getArgb(150, 60, 60, 60),
+                    null,
+                    0xFFFFFF,
+                    null,
+                    mouseX + 10,
+                    mouseY + 10
+            );
         }
     }
 
