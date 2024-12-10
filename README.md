@@ -6,7 +6,7 @@
   <img src="https://cdn.modrinth.com/data/cached_images/c6d909828e500ee3995b6401247dcf3acd757e1f_0.webp" alt="Requires Omnilib" width="256">
 </a>
 
-**Requires Fabric API. Also compatible with Forge and NeoForge, using [Sinytra Connector](https://modrinth.com/mod/connector), requires [Forgified Fabric API](https://modrinth.com/mod/forgified-fabric-api).**
+**Requires Fabric API and Omnilib. Also compatible with Forge and NeoForge, using [Sinytra Connector](https://modrinth.com/mod/connector), requires [Forgified Fabric API](https://modrinth.com/mod/forgified-fabric-api).**
 
 ![CraftSense Showcase](https://cdn.modrinth.com/data/cached_images/b70322cf87470720fc685f3354b4e37c6533eb4a_0.webp)
 
