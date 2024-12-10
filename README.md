@@ -2,6 +2,10 @@
 
 **CraftSense** is a Minecraft mod that helps players with crafting by predicting and suggesting crafting recipes based on their previous crafting habits. The mod analyzes items in the player’s inventory, recommends possible crafting recipes and allows for instant crafting by simply clicking on the suggested output to make the crafting process faster and easier. It can be enabled or disabled with a customizable keybind (`K` by default), allowing you to easily toggle it on or off.
 
+<a href="https://modrinth.com/mod/omnilib">
+  <img src="https://cdn.modrinth.com/data/cached_images/c6d909828e500ee3995b6401247dcf3acd757e1f_0.webp" alt="Requires Omnilib" width="256">
+</a>
+
 **Requires Fabric API. Also compatible with Forge and NeoForge, using [Sinytra Connector](https://modrinth.com/mod/connector), requires [Forgified Fabric API](https://modrinth.com/mod/forgified-fabric-api).**
 
 ![CraftSense Showcase](https://cdn.modrinth.com/data/cached_images/b70322cf87470720fc685f3354b4e37c6533eb4a_0.webp)
@@ -15,3 +19,7 @@
 - **Supports Other Mods**: Works with recipes from other mods.
 - **Context Awareness**: If your health is low and you have no weapons but have the required materials, CraftSense will prioritize weapon suggestions over your crafting habits.
 - **Crafting Statistics Screen**: Press `J` (default) to access the statistics screen displaying your crafting patterns. Hover over graph elements to view detailed data on crafted items within each category.
+
+## **Usage Guidelines**
+
+**CraftSense** can be freely included in modpacks, as long as downloads stay within **Modrinth**, **CurseForge**, or **GitHub**. These are the only official sources for the mod. Any other sites are not authorized and should not be used.
