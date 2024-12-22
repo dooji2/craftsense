@@ -11,7 +11,6 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
-import net.minecraft.util.math.ColorHelper.Argb;
 import net.minecraft.client.gui.DrawContext;
 
 import java.util.*;
@@ -258,7 +257,7 @@ public class CraftSenseStatsScreen extends Screen {
                     tooltipCategory,
                     tooltipItemStacks,
                     tooltipItemTexts,
-                    Argb.getArgb(150, 60, 60, 60),
+                    toArgb(150, 60, 60, 60),
                     null,
                     0xFFFFFF,
                     null,
@@ -280,6 +279,13 @@ public class CraftSenseStatsScreen extends Screen {
         }
 
         return ellipsis;
+    }
+
+    private int toArgb(int alpha, int red, int green, int blue) {
+        return ((alpha & 0xFF) << 24) |
+                ((red & 0xFF) << 16) |
+                ((green & 0xFF) << 8) |
+                (blue & 0xFF);
     }
 
     private String formatNumberShorthand(int number) {
