@@ -1,41 +1,42 @@
 package com.dooji.craftsense;
 
 import com.dooji.craftsense.manager.CategoryHabitsTracker;
+import com.dooji.craftsense.manager.CategoryManager;
 import com.dooji.craftsense.manager.CraftSenseTracker;
+import com.dooji.craftsense.mixin.ShapedRecipeAccessor;
+import com.dooji.craftsense.mixin.ShapelessRecipeAccessor;
 
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.RecipeInputInventory;
 import net.minecraft.item.ItemStack;
-import net.minecraft.recipe.CraftingRecipe;
-import net.minecraft.recipe.Ingredient;
-import net.minecraft.recipe.RecipeEntry;
-import net.minecraft.recipe.RecipeManager;
-import net.minecraft.recipe.RecipeType;
-import net.minecraft.recipe.ShapedRecipe;
+import net.minecraft.item.Item;
+import net.minecraft.recipe.*;
+import net.minecraft.recipe.input.CraftingRecipeInput;
 import net.minecraft.registry.Registries;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
-import net.minecraft.util.collection.DefaultedList;
 
 import java.util.*;
-
-import static com.dooji.craftsense.manager.CategoryManager.getCategory;
+import java.util.stream.Collectors;
 
 public class CraftingPredictor {
     private static CraftingPredictor instance;
-    private final RecipeManager recipeManager;
     private final CategoryHabitsTracker habitsConfig;
+
+    private Collection<RecipeEntry<?>> recipes = Collections.emptyList();
+    private Map<RegistryKey<Recipe<?>>, List<ServerRecipeManager.ServerRecipe>> recipesByKey;
 
     private final Map<String, Optional<CraftingRecipe>> recipeCache = new HashMap<>();
 
-    public CraftingPredictor(RecipeManager recipeManager) {
-        this.recipeManager = recipeManager;
+    public CraftingPredictor() {
         this.habitsConfig = CategoryHabitsTracker.getInstance();
     }
 
-    public static CraftingPredictor getInstance(RecipeManager recipeManager) {
+    public static CraftingPredictor getInstance() {
         if (instance == null) {
-            instance = new CraftingPredictor(recipeManager);
+            instance = new CraftingPredictor();
         }
         return instance;
     }
@@ -46,6 +47,18 @@ public class CraftingPredictor {
             availableItems.add(cursorStack.copy());
         }
         return availableItems;
+    }
+
+    public void setRecipes(Collection<RecipeEntry<?>> recipes) {
+        this.recipes = recipes;
+    }
+
+    public void setRecipesByKey(Map<RegistryKey<Recipe<?>>, List<ServerRecipeManager.ServerRecipe>> recipesByKey) {
+        this.recipesByKey = recipesByKey;
+    }
+
+    public Map<RegistryKey<Recipe<?>>, List<ServerRecipeManager.ServerRecipe>> getRecipesByKey() {
+        return recipesByKey != null ? recipesByKey : Collections.emptyMap();
     }
 
     private boolean isGridEmpty(RecipeInputInventory input) {
@@ -76,16 +89,35 @@ public class CraftingPredictor {
     }
 
     private boolean itemsAndComponentsMatch(ItemStack stack, ItemStack itemToMatch) {
-
         if (!ItemStack.areItemsEqual(stack, itemToMatch)) {
             return false;
         }
-
         return Objects.equals(stack.getComponents(), itemToMatch.getComponents());
     }
 
+    private <T extends Recipe<CraftingRecipeInput>> Optional<RecipeEntry<T>> findMatchingRecipe(
+            RecipeType<T> type, RecipeInputInventory input, World world, List<ServerRecipeManager.ServerRecipe> recipes) {
+
+        CraftingRecipeInput recipeInput = input.createRecipeInput();
+
+        for (ServerRecipeManager.ServerRecipe serverRecipe : recipes) {
+            RecipeEntry<T> recipeEntry = (RecipeEntry<T>) serverRecipe.parent();
+            T recipe = recipeEntry.value();
+
+            if (recipe.getType() == type && recipe.matches(recipeInput, world)) {
+                return Optional.of(recipeEntry);
+            }
+        }
+
+        return Optional.empty();
+    }
+
     public Optional<CraftingRecipe> suggestRecipe(RecipeInputInventory input, PlayerInventory playerInventory, ItemStack cursorStack, World world) {
-        if (!CraftSense.configManager.isEnabled() || isGridEmpty(input) || recipeManager.getFirstMatch(RecipeType.CRAFTING, input.createRecipeInput(), world).isPresent()) {
+        List<ServerRecipeManager.ServerRecipe> serverRecipes = recipesByKey.values().stream()
+                .flatMap(Collection::stream)
+                .collect(Collectors.toList());
+
+        if (!CraftSense.configManager.isEnabled() || isGridEmpty(input) || recipes.isEmpty() || findMatchingRecipe(RecipeType.CRAFTING, input, world, serverRecipes).isPresent()) {
             return Optional.empty();
         }
 
@@ -95,7 +127,12 @@ public class CraftingPredictor {
             return recipeCache.get(inputHash);
         }
 
-        List<RecipeEntry<CraftingRecipe>> recipes = recipeManager.listAllOfType(RecipeType.CRAFTING);
+        Collection<RecipeEntry<?>> allRecipes = recipes;
+        List<RecipeEntry<CraftingRecipe>> recipes = allRecipes.stream()
+                .filter(recipeEntry -> recipeEntry.value() instanceof CraftingRecipe)
+                .map(recipeEntry -> (RecipeEntry<CraftingRecipe>) recipeEntry)
+                .collect(Collectors.toList());
+
         CraftingRecipe bestRecipe = null;
         int bestScore = -1;
 
@@ -112,7 +149,7 @@ public class CraftingPredictor {
         int highestItemCount = -1;
         for (Map.Entry<String, Integer> entry : habitsConfig.itemCraftCount.entrySet()) {
             String itemName = entry.getKey();
-            if (getCategory(Registries.ITEM.get(Identifier.of(itemName))).equals(bestCategory)) {
+            if (CategoryManager.getCategory(Registries.ITEM.get(Identifier.of(itemName))).equals(bestCategory)) {
                 int itemCount = entry.getValue();
                 if (itemCount > highestItemCount) {
                     mostCraftedItem = itemName;
@@ -124,12 +161,14 @@ public class CraftingPredictor {
         List<ItemStack> availableItems = getAvailableItems(playerInventory, cursorStack);
         List<RecipeEntry<CraftingRecipe>> filteredRecipeEntries = recipes.stream()
                 .filter(recipeEntry -> hasRequiredIngredients(recipeEntry.value(), availableItems))
-                .toList();
+                .collect(Collectors.toList());
 
         for (RecipeEntry<CraftingRecipe> recipeEntry : filteredRecipeEntries) {
             CraftingRecipe recipe = recipeEntry.value();
-            String category = getCategory(recipe.getResult(world.getRegistryManager()).getItem());
-            String itemName = recipe.getResult(world.getRegistryManager()).getTranslationKey();
+            ItemStack resultStack = getRecipeResult(recipe);
+            if (resultStack.isEmpty()) continue;
+            String category = CategoryManager.getCategory(resultStack.getItem());
+            String itemName = resultStack.getItem().getTranslationKey();
 
             int score = calculateMatchScore(recipe, input, playerInventory, cursorStack);
             if (score <= 0) continue;
@@ -153,7 +192,7 @@ public class CraftingPredictor {
             }
         }
 
-        if (bestRecipe != null && getCategory(bestRecipe.getResult(world.getRegistryManager()).getItem()).equals("TOOL")) {
+        if (bestRecipe != null && CategoryManager.getCategory(getRecipeResult(bestRecipe).getItem()).equals("TOOL")) {
             boolean hasWeapon = playerInventoryContainsWeapon(playerInventory);
 
             if (CraftSenseTracker.isPrioritizingCombatItems() && !hasWeapon) {
@@ -169,16 +208,32 @@ public class CraftingPredictor {
         return result;
     }
 
+    private ItemStack getRecipeResult(CraftingRecipe recipe) {
+        if (recipe instanceof ShapedRecipe) {
+            ItemStack result = ((ShapedRecipeAccessor) recipe).getResult();
+            return result.copy();
+        } else if (recipe instanceof ShapelessRecipe) {
+            ItemStack result = ((ShapelessRecipeAccessor) recipe).getResult();
+            return result.copy();
+        } else {
+            return ItemStack.EMPTY;
+        }
+    }
+
     public boolean hasRequiredIngredients(CraftingRecipe recipe, List<ItemStack> availableItems) {
         List<ItemStack> tempAvailableItems = copyItemStacks(availableItems);
 
-        for (Ingredient ingredient : recipe.getIngredients()) {
-            if (ingredient.isEmpty()) {
+        List<Ingredient> ingredients = recipe.getIngredientPlacement().getIngredients();
+
+        for (Ingredient ingredient : ingredients) {
+            if (ingredient.getMatchingItems().isEmpty()) {
                 continue;
             }
 
             boolean found = false;
-            for (ItemStack matchingStack : ingredient.getMatchingStacks()) {
+            for (RegistryEntry<Item> matchingItemEntry : ingredient.getMatchingItems()) {
+                Item matchingItem = matchingItemEntry.value();
+                ItemStack matchingStack = new ItemStack(matchingItem);
                 if (decrementAvailableItemCount(tempAvailableItems, matchingStack)) {
                     found = true;
                     break;
@@ -235,14 +290,14 @@ public class CraftingPredictor {
         StringBuilder hashBuilder = new StringBuilder();
         for (int i = 0; i < input.size(); i++) {
             ItemStack stack = input.getStack(i);
-            hashBuilder.append(stack.isEmpty() ? "-" : stack.getTranslationKey() + ":" + stack.getCount()).append(",");
+            hashBuilder.append(stack.isEmpty() ? "-" : stack.getItem().getTranslationKey() + ":" + stack.getCount()).append(",");
         }
 
         for (ItemStack stack : playerInventory.main) {
-            hashBuilder.append(stack.isEmpty() ? "-" : stack.getTranslationKey() + ":" + stack.getCount()).append(",");
+            hashBuilder.append(stack.isEmpty() ? "-" : stack.getItem().getTranslationKey() + ":" + stack.getCount()).append(",");
         }
         if (!cursorStack.isEmpty()) {
-            hashBuilder.append(cursorStack.getTranslationKey()).append(":").append(cursorStack.getCount());
+            hashBuilder.append(cursorStack.getItem().getTranslationKey()).append(":").append(cursorStack.getCount());
         }
         return hashBuilder.toString();
     }
@@ -253,7 +308,7 @@ public class CraftingPredictor {
 
         int recipeWidth = recipe.getWidth();
         int recipeHeight = recipe.getHeight();
-        DefaultedList<Ingredient> ingredients = recipe.getIngredients();
+        List<Optional<Ingredient>> ingredients = recipe.getIngredients();
 
         boolean mismatch = false;
 
@@ -282,7 +337,7 @@ public class CraftingPredictor {
         for (int recipeY = 0; recipeY < recipeHeight; recipeY++) {
             for (int recipeX = 0; recipeX < recipeWidth; recipeX++) {
                 int index = recipeY * recipeWidth + recipeX;
-                Ingredient ingredient = ingredients.get(index);
+                Optional<Ingredient> ingredient = ingredients.get(index);
 
                 int gridX = offsetX + recipeX;
                 int gridY = offsetY + recipeY;
@@ -300,7 +355,7 @@ public class CraftingPredictor {
                 }
 
                 if (!placedItem.isEmpty()) {
-                    if (ingredient.test(placedItem)) {
+                    if (ingredient.get().test(placedItem)) {
                         score += 2;
                         decrementAvailableItemCount(tempAvailableItems, placedItem);
                     } else {
@@ -310,8 +365,8 @@ public class CraftingPredictor {
                 } else {
 
                     boolean found = false;
-                    for (ItemStack matchingStack : ingredient.getMatchingStacks()) {
-                        if (decrementAvailableItemCount(tempAvailableItems, matchingStack)) {
+                    for (RegistryEntry<Item> matchingItem : ingredient.get().getMatchingItems()) {
+                        if (decrementAvailableItemCount(tempAvailableItems, new ItemStack(matchingItem.value()))) {
                             score += 1;
                             found = true;
                             break;
@@ -344,7 +399,7 @@ public class CraftingPredictor {
         int score = 0;
         List<ItemStack> tempAvailableItems = copyItemStacks(availableItems);
 
-        List<Ingredient> ingredients = recipe.getIngredients();
+        List<Ingredient> ingredients = recipe.getIngredientPlacement().getIngredients();
         List<Ingredient> ingredientsToMatch = new ArrayList<>(ingredients);
 
         for (int i = 0; i < input.size(); i++) {
@@ -363,7 +418,6 @@ public class CraftingPredictor {
                     }
                 }
                 if (!matched) {
-
                     return -1;
                 }
             }
@@ -371,7 +425,9 @@ public class CraftingPredictor {
 
         for (Ingredient ingredient : ingredientsToMatch) {
             boolean found = false;
-            for (ItemStack matchingStack : ingredient.getMatchingStacks()) {
+            for (RegistryEntry<Item> matchingItemEntry : ingredient.getMatchingItems()) {
+                Item matchingItem = matchingItemEntry.value();
+                ItemStack matchingStack = new ItemStack(matchingItem);
                 if (decrementAvailableItemCount(tempAvailableItems, matchingStack)) {
                     score += 1;
                     found = true;
@@ -383,7 +439,7 @@ public class CraftingPredictor {
             }
         }
 
-        if (score == recipe.getIngredients().size() * 2) {
+        if (score == ingredients.size() * 2) {
             return Integer.MAX_VALUE;
         }
 
@@ -402,7 +458,9 @@ public class CraftingPredictor {
     private Optional<CraftingRecipe> suggestCombatRecipe(List<RecipeEntry<CraftingRecipe>> recipes, RecipeInputInventory input, PlayerInventory playerInventory, ItemStack cursorStack, World world) {
         for (RecipeEntry<CraftingRecipe> recipeEntry : recipes) {
             CraftingRecipe recipe = recipeEntry.value();
-            String resultName = recipe.getResult(world.getRegistryManager()).getTranslationKey().toUpperCase();
+            ItemStack resultStack = getRecipeResult(recipe);
+            if (resultStack.isEmpty()) continue;
+            String resultName = resultStack.getItem().getTranslationKey().toUpperCase();
             if (resultName.contains("SWORD") || resultName.contains("_AXE") || resultName.contains("SHIELD")) {
                 int score = calculateMatchScore(recipe, input, playerInventory, cursorStack);
                 if (score > 0) {
@@ -415,15 +473,26 @@ public class CraftingPredictor {
 
     public Optional<CraftingRecipe> suggestLastCraftedItem(RecipeInputInventory input, PlayerInventory playerInventory, ItemStack cursorStack, World world) {
         String lastCraftedItem = CategoryHabitsTracker.getInstance().getLastCraftedItem();
-        if (lastCraftedItem == null || !isGridEmpty(input)) {
+
+        List<ServerRecipeManager.ServerRecipe> serverRecipes = recipesByKey.values().stream()
+                .flatMap(Collection::stream)
+                .collect(Collectors.toList());
+
+        if (lastCraftedItem == null || !isGridEmpty(input) || recipes.isEmpty() || findMatchingRecipe(RecipeType.CRAFTING, input, world, serverRecipes).isPresent()) {
             return Optional.empty();
         }
 
-        List<RecipeEntry<CraftingRecipe>> recipes = recipeManager.listAllOfType(RecipeType.CRAFTING);
+        Collection<RecipeEntry<?>> allRecipes = recipes;
+        List<RecipeEntry<CraftingRecipe>> recipes = allRecipes.stream()
+                .filter(recipeEntry -> recipeEntry.value() instanceof CraftingRecipe)
+                .map(recipeEntry -> (RecipeEntry<CraftingRecipe>) recipeEntry)
+                .collect(Collectors.toList());
 
         for (RecipeEntry<CraftingRecipe> recipeEntry : recipes) {
             CraftingRecipe recipe = recipeEntry.value();
-            String resultTranslationKey = recipe.getResult(world.getRegistryManager()).getTranslationKey();
+            ItemStack resultStack = getRecipeResult(recipe);
+            if (resultStack.isEmpty()) continue;
+            String resultTranslationKey = resultStack.getItem().getTranslationKey();
 
             if (resultTranslationKey.equals(lastCraftedItem)) {
                 int score = calculateMatchScore(recipe, input, playerInventory, cursorStack);
