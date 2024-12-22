@@ -3,26 +3,44 @@ package com.dooji.craftsense.mixin;
 import com.dooji.craftsense.CraftSense;
 import com.dooji.craftsense.CraftingPredictor;
 import com.dooji.craftsense.manager.CategoryHabitsTracker;
+import com.dooji.craftsense.manager.CategoryManager;
 import com.dooji.craftsense.network.payloads.CraftItemPayload;
-import com.mojang.blaze3d.systems.RenderSystem;
+
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
+
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.CraftingScreen;
+import net.minecraft.client.gui.screen.ingame.RecipeBookScreen;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.RecipeInputInventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.recipe.*;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.recipe.CraftingRecipe;
+import net.minecraft.recipe.ShapedRecipe;
+import net.minecraft.recipe.display.RecipeDisplay;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.recipe.ServerRecipeManager;
 import net.minecraft.screen.CraftingScreenHandler;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.context.ContextParameterMap;
+import net.minecraft.util.context.ContextType;
 import net.minecraft.world.World;
-import org.jetbrains.annotations.Nullable;
+
 import org.joml.Matrix4f;
+import com.mojang.blaze3d.systems.RenderSystem;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -30,25 +48,23 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
-import static com.dooji.craftsense.manager.CategoryManager.getCategory;
-
-@Mixin(CraftingScreen.class)
+@Mixin(RecipeBookScreen.class)
 public abstract class CraftingScreenMixin {
-
     @Unique
     private int resultSlotX;
-
     @Unique
     private int resultSlotY;
-
     @Unique
     private String lastGridHash = "";
-
+    @Unique
+    private static final ContextParameterMap EMPTY_CONTEXT_PARAMETER_MAP = new ContextParameterMap.Builder().build(new ContextType.Builder().build());
     @Unique
     private Optional<CraftingRecipe> cachedLastCraftedRecipe = Optional.empty();
-
     @Unique
     private Optional<CraftingRecipe> cachedSuggestedRecipe = Optional.empty();
 
@@ -58,17 +74,18 @@ public abstract class CraftingScreenMixin {
             return;
         }
 
-        CraftingScreen craftingScreen = (CraftingScreen) (Object) this;
+        if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen craftingScreen)) {
+            return;
+        }
+
         MinecraftClient client = MinecraftClient.getInstance();
         PlayerInventory playerInventory = client.player.getInventory();
         World world = client.world;
 
         CraftingScreenHandler handler = craftingScreen.getScreenHandler();
-        RecipeInputInventory input = ((CraftingScreenHandlerAccessor) handler).getInput();
+        RecipeInputInventory input = ((CraftingScreenHandlerAccessor) handler).getCraftingInventory();
         ItemStack cursorStack = handler.getCursorStack();
-
-        CraftingPredictor predictor = CraftingPredictor.getInstance(world.getRecipeManager());
-
+        CraftingPredictor predictor = CraftingPredictor.getInstance();
         String currentStateHash = predictor.calculateInputHash(input, playerInventory, cursorStack);
 
         if (!currentStateHash.equals(lastGridHash)) {
@@ -89,7 +106,7 @@ public abstract class CraftingScreenMixin {
         if (cachedLastCraftedRecipe.isPresent()) {
             CraftingRecipe recipe = cachedLastCraftedRecipe.get();
             if (predictor.hasRequiredIngredients(recipe, predictor.getAvailableItems(playerInventory, cursorStack))) {
-                ItemStack resultStack = recipe.getResult(world.getRegistryManager());
+                ItemStack resultStack = getRecipeResult(recipe);
                 renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f, mouseX, mouseY, true);
                 return;
             }
@@ -98,13 +115,13 @@ public abstract class CraftingScreenMixin {
         if (cachedSuggestedRecipe.isPresent()) {
             CraftingRecipe recipe = cachedSuggestedRecipe.get();
             if (predictor.hasRequiredIngredients(recipe, predictor.getAvailableItems(playerInventory, cursorStack))) {
-                ItemStack resultStack = recipe.getResult(world.getRegistryManager());
+                ItemStack resultStack = getRecipeResult(recipe);
                 renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f, mouseX, mouseY, false);
-
+        
                 if (recipe instanceof ShapedRecipe shapedRecipe) {
                     int recipeWidth = shapedRecipe.getWidth();
                     int recipeHeight = shapedRecipe.getHeight();
-                    List<Ingredient> ingredients = shapedRecipe.getIngredients();
+                    List<Optional<Ingredient>> ingredients = shapedRecipe.getIngredients();
 
                     int bestOffsetX = -1;
                     int bestOffsetY = -1;
@@ -122,23 +139,28 @@ public abstract class CraftingScreenMixin {
                     }
 
                     if (bestOffsetX != -1 && bestOffsetY != -1) {
-                        for (int recipeY = 0; recipeHeight > recipeY; recipeY++) {
-                            for (int recipeX = 0; recipeWidth > recipeX; recipeX++) {
+                        for (int recipeY = 0; recipeY < recipeHeight; recipeY++) {
+                            for (int recipeX = 0; recipeX < recipeWidth; recipeX++) {
                                 int index = recipeY * recipeWidth + recipeX;
-                                Ingredient ingredient = ingredients.get(index);
+                                Optional<Ingredient> optionalIngredient = ingredients.get(index);
 
-                                int gridX = bestOffsetX + recipeX;
-                                int gridY = bestOffsetY + recipeY;
+                                if (optionalIngredient.isPresent()) {
+                                    Ingredient ingredient = optionalIngredient.get();
+                                    List<RegistryEntry<Item>> matchingItems = ingredient.getMatchingItems();
 
-                                int gridIndex = gridY * 3 + gridX;
-                                Slot slot = handler.slots.get(gridIndex + 1);
-                                int slotX = screenX + slot.x;
-                                int slotY = screenY + slot.y;
+                                    if (!matchingItems.isEmpty()) {
+                                        ItemStack ghostStack = new ItemStack(matchingItems.get(0).value());
 
-                                ItemStack[] matchingStacks = ingredient.getMatchingStacks();
-                                if (matchingStacks.length > 0) {
-                                    ItemStack ghostStack = matchingStacks[0];
-                                    renderGhostItem(context, ghostStack, slotX, slotY, 0.2f, mouseX, mouseY, false);
+                                        int gridX = bestOffsetX + recipeX;
+                                        int gridY = bestOffsetY + recipeY;
+                                        
+                                        int gridIndex = gridY * 3 + gridX;
+                                        Slot slot = handler.slots.get(gridIndex + 1);
+                                        int slotX = screenX + slot.x;
+                                        int slotY = screenY + slot.y;
+
+                                        renderGhostItem(context, ghostStack, slotX, slotY, 0.2f, mouseX, mouseY, false);
+                                    }
                                 }
                             }
                         }
@@ -150,26 +172,26 @@ public abstract class CraftingScreenMixin {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void onSuggestedRecipeClick(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
+        if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen craftingScreen)) {
+            return;
+        }
+
         if (isMouseOverSlot((int) mouseX, (int) mouseY, resultSlotX, resultSlotY)) {
             MinecraftClient client = MinecraftClient.getInstance();
             PlayerInventory playerInventory = client.player.getInventory();
             World world = client.world;
-
-            CraftingScreenHandler handler = ((CraftingScreen) (Object) this).getScreenHandler();
-            RecipeInputInventory input = ((CraftingScreenHandlerAccessor) handler).getInput();
-            CraftingPredictor predictor = CraftingPredictor.getInstance(world.getRecipeManager());
+            CraftingScreenHandler handler = craftingScreen.getScreenHandler();
+            RecipeInputInventory input = ((CraftingScreenHandlerAccessor) handler).getCraftingInventory();
+            CraftingPredictor predictor = CraftingPredictor.getInstance();
             Optional<CraftingRecipe> lastCraftedRecipe = predictor.suggestLastCraftedItem(input, playerInventory, handler.getCursorStack(), world);
-
-            Optional<CraftingRecipe> optionalRecipe = lastCraftedRecipe.isPresent()
-                    ? lastCraftedRecipe
-                    : predictor.suggestRecipe(input, playerInventory, handler.getCursorStack(), world);
+            Optional<CraftingRecipe> optionalRecipe = lastCraftedRecipe.isPresent() ? lastCraftedRecipe : predictor.suggestRecipe(input, playerInventory, handler.getCursorStack(), world);
 
             if (optionalRecipe.isPresent()) {
                 CraftingRecipe recipe = optionalRecipe.get();
-                Identifier recipeId = findRecipeId(world.getRecipeManager(), recipe);
+                Identifier recipeId = findRecipeId(recipe);
 
                 if (recipeId != null) {
-                    ItemStack resultStack = recipe.getResult(world.getRegistryManager()).copy();
+                    ItemStack resultStack = getRecipeResult(recipe);
                     ItemStack cursorStack = handler.getCursorStack();
 
                     if (cursorStack.isEmpty()) {
@@ -182,11 +204,11 @@ public abstract class CraftingScreenMixin {
                     }
 
                     CategoryHabitsTracker habitsConfig = CategoryHabitsTracker.getInstance();
-                    String category = getCategory(resultStack.getItem());
+                    String category = CategoryManager.getCategory(resultStack.getItem());
                     habitsConfig.recordCraft(category, resultStack.getItem().getTranslationKey());
-
-                    ClientPlayNetworking.send(new CraftItemPayload(recipeId.toString()));
-
+                    PacketByteBuf buf = PacketByteBufs.create();
+                    buf.writeString(recipeId.toString());
+                    ClientPlayNetworking.getSender().sendPacket(new CraftItemPayload(recipeId.toString()));
                     cir.setReturnValue(true);
                 }
             }
@@ -221,7 +243,8 @@ public abstract class CraftingScreenMixin {
     @Unique
     private void drawTransparentRectangle(DrawContext context, int x1, int y1, int x2, int y2, int z, float alpha) {
         Matrix4f matrix = context.getMatrices().peek().getPositionMatrix();
-        VertexConsumer vertexConsumer = context.getVertexConsumers().getBuffer(RenderLayer.getGui());
+        VertexConsumerProvider.Immediate vertexConsumers = ((DrawContextAccessor) context).getVertexConsumers();
+        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayer.getGui());
 
         int color = (int)(alpha * 255) << 24 | 0xFFFFFF;
 
@@ -238,8 +261,7 @@ public abstract class CraftingScreenMixin {
         if (!ItemStack.areItemsEqual(stack1, stack2)) {
             return false;
         }
-
-        return Objects.equals(stack1.getComponents(), stack2.getComponents());
+        return java.util.Objects.equals(stack1.getComponents(), stack2.getComponents());
     }
 
     @Unique
@@ -248,16 +270,49 @@ public abstract class CraftingScreenMixin {
     }
 
     @Unique
-    @Nullable
-    private Identifier findRecipeId(RecipeManager recipeManager, CraftingRecipe targetRecipe) {
-        Map<Identifier, RecipeEntry<?>> recipesById = ((RecipeManagerAccessor) recipeManager).getRecipesById();
+    private Identifier findRecipeId(CraftingRecipe targetRecipe) {
+        ContextParameterMap emptyMap = EMPTY_CONTEXT_PARAMETER_MAP;
+        List<RecipeDisplay> displays = targetRecipe.getDisplays();
+        if (displays.isEmpty()) {
+            return null;
+        }
 
-        for (Map.Entry<Identifier, RecipeEntry<?>> entry : recipesById.entrySet()) {
-            Recipe<?> recipe = entry.getValue().value();
-            if (recipe instanceof CraftingRecipe && recipe == targetRecipe) {
-                return entry.getKey();
+        ItemStack targetResult = displays.get(0).result().getStacks(emptyMap).get(0);
+
+        for (Map.Entry<RegistryKey<Recipe<?>>, List<ServerRecipeManager.ServerRecipe>> entry : CraftingPredictor.getInstance().getRecipesByKey().entrySet()) {
+            Identifier recipeId = entry.getKey().getValue();
+
+            for (ServerRecipeManager.ServerRecipe serverRecipe : entry.getValue()) {
+                Recipe<?> rawRecipe = serverRecipe.parent().value();
+
+                if (!(rawRecipe instanceof CraftingRecipe recipe)) {
+                    continue;
+                }
+
+                List<RecipeDisplay> serverDisplays = recipe.getDisplays();
+                if (serverDisplays.isEmpty()) {
+                    continue;
+                }
+
+                ItemStack serverResult = serverDisplays.get(0).result().getStacks(emptyMap).get(0);
+
+                if (ItemStack.areItemsEqual(targetResult, serverResult) &&
+                        targetResult.getCount() == serverResult.getCount()) {
+                    return recipeId;
+                }
             }
         }
+
         return null;
+    }
+
+    private ItemStack getRecipeResult(CraftingRecipe recipe) {
+        if (recipe instanceof ShapedRecipeAccessor shaped) {
+            return shaped.getResult().copy();
+        } else if (recipe instanceof ShapelessRecipeAccessor shapeless) {
+            return shapeless.getResult().copy();
+        } else {
+            return ItemStack.EMPTY;
+        }
     }
 }
