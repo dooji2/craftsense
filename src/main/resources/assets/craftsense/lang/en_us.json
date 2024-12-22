@@ -8,5 +8,8 @@
   "screen.craftsense.stats.next": "Next >",
   "screen.craftsense.stats.page": "Page %d / %d",
   "tooltip.craftsense.no_items_found": "No items found in this category.",
-  "tooltip.craftsense.last_crafted_item": "Last crafted item"
+  "tooltip.craftsense.last_crafted_item": "Last crafted item",
+  "tooltip.craftsense.click_here": "Click here",
+  "tooltip.craftsense.lastCraftedSuggest": "Quickly craft the\nlast item you crafted!",
+  "tooltip.craftsense.suggest": "No need to place\nall the ingredients in!"
 }

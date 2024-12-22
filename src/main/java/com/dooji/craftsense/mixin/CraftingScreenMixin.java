@@ -12,6 +12,7 @@ import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.CraftingScreen;
+import net.minecraft.client.gui.tooltip.TooltipPositioner;
 import net.minecraft.client.gui.screen.ingame.RecipeBookScreen;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
@@ -31,6 +32,7 @@ import net.minecraft.recipe.Recipe;
 import net.minecraft.recipe.ServerRecipeManager;
 import net.minecraft.screen.CraftingScreenHandler;
 import net.minecraft.screen.slot.Slot;
+import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
@@ -39,6 +41,8 @@ import net.minecraft.util.context.ContextType;
 import net.minecraft.world.World;
 
 import org.joml.Matrix4f;
+import org.joml.Vector2i;
+import org.joml.Vector2ic;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import org.spongepowered.asm.mixin.Mixin;
@@ -67,6 +71,12 @@ public abstract class CraftingScreenMixin {
     private Optional<CraftingRecipe> cachedLastCraftedRecipe = Optional.empty();
     @Unique
     private Optional<CraftingRecipe> cachedSuggestedRecipe = Optional.empty();
+
+    @Unique
+    private boolean showFirstTimeTooltips = CraftSense.configManager.isFirstTime();
+
+    @Unique
+    private int progress = 0;
 
     @Inject(method = "render", at = @At("TAIL"))
     private void renderCraftingPrediction(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
@@ -104,6 +114,10 @@ public abstract class CraftingScreenMixin {
         resultSlotY = screenY + 35;
 
         if (cachedLastCraftedRecipe.isPresent()) {
+            if (showFirstTimeTooltips) {
+                renderTooltip(context, Text.translatable("tooltip.craftsense.click_here").getString(), Text.translatable("tooltip.craftsense.lastCraftedSuggest").getString(), resultSlotX, resultSlotY);
+            }
+
             CraftingRecipe recipe = cachedLastCraftedRecipe.get();
             if (predictor.hasRequiredIngredients(recipe, predictor.getAvailableItems(playerInventory, cursorStack))) {
                 ItemStack resultStack = getRecipeResult(recipe);
@@ -113,6 +127,10 @@ public abstract class CraftingScreenMixin {
         }
 
         if (cachedSuggestedRecipe.isPresent()) {
+            if (showFirstTimeTooltips) {
+                renderTooltip(context, Text.translatable("tooltip.craftsense.click_here").getString(), Text.translatable("tooltip.craftsense.suggest").getString(), resultSlotX, resultSlotY);
+            }
+
             CraftingRecipe recipe = cachedSuggestedRecipe.get();
             if (predictor.hasRequiredIngredients(recipe, predictor.getAvailableItems(playerInventory, cursorStack))) {
                 ItemStack resultStack = getRecipeResult(recipe);
@@ -177,6 +195,14 @@ public abstract class CraftingScreenMixin {
         }
 
         if (isMouseOverSlot((int) mouseX, (int) mouseY, resultSlotX, resultSlotY)) {
+            if (showFirstTimeTooltips) {
+                progress++;
+                if (progress >= 2) {
+                    showFirstTimeTooltips = false;
+                    CraftSense.configManager.toggleFirstTime();
+                }
+            }
+
             MinecraftClient client = MinecraftClient.getInstance();
             PlayerInventory playerInventory = client.player.getInventory();
             World world = client.world;
@@ -314,5 +340,19 @@ public abstract class CraftingScreenMixin {
         } else {
             return ItemStack.EMPTY;
         }
+    }
+
+    @Unique
+    private void renderTooltip(DrawContext context, String title, String description, int x, int y) {
+        List<OrderedText> tooltip = new ArrayList<>();
+        tooltip.add(Text.literal(title).formatted(Formatting.WHITE).asOrderedText());
+
+        String[] descriptionLines = description.split("\n");
+        for (String line : descriptionLines) {
+            tooltip.add(Text.literal(line).formatted(Formatting.GRAY).asOrderedText());
+        }
+
+        TooltipPositioner fixedPositioner = (screenWidth, screenHeight, tooltipX, tooltipY, tooltipWidth, tooltipHeight) -> new Vector2i(tooltipX, tooltipY);
+        context.drawTooltip(MinecraftClient.getInstance().textRenderer, tooltip, fixedPositioner, x + 30, y - 7);
     }
 }
