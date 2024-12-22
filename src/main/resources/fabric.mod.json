@@ -26,11 +26,11 @@
 		"craftsense.mixins.json"
 	],
 	"depends": {
-		"fabricloader": ">=0.16.7",
-		"minecraft": "~1.21",
+		"fabricloader": ">=0.16.9",
+		"minecraft": "~1.21.2",
 		"java": ">=21",
 		"fabric-api": "*",
-		"omnilib": "*"
+		"omnilib": ">=0.1.2"
 	},
 	"suggests": {
 		"another-mod": "*"

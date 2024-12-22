@@ -5,7 +5,10 @@
   "mixins": [
     "CraftingEventMixin",
     "CraftingScreenHandlerAccessor",
-    "RecipeManagerAccessor"
+    "RecipeManagerAccessor",
+    "ShapedRecipeAccessor",
+    "ShapelessRecipeAccessor",
+    "DrawContextAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
