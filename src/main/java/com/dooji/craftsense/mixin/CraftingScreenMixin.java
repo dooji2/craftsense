@@ -7,6 +7,7 @@ import com.dooji.craftsense.network.payloads.CraftItemPayload;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.CraftingScreen;
 import net.minecraft.client.render.RenderLayer;
@@ -52,6 +53,12 @@ public abstract class CraftingScreenMixin {
     @Unique
     private Optional<CraftingRecipe> cachedSuggestedRecipe = Optional.empty();
 
+    @Unique
+    private boolean showFirstTimeTooltips = CraftSense.configManager.isFirstTime();
+
+    @Unique
+    private int progress = 0;
+
     @Inject(method = "render", at = @At("TAIL"))
     private void renderCraftingPrediction(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!CraftSense.configManager.isEnabled()) {
@@ -87,6 +94,10 @@ public abstract class CraftingScreenMixin {
         resultSlotY = screenY + 35;
 
         if (cachedLastCraftedRecipe.isPresent()) {
+            if (showFirstTimeTooltips) {
+                renderTooltip(context, Text.translatable("tooltip.craftsense.click_here").getString(), Text.translatable("tooltip.craftsense.lastCraftedSuggest").getString(), resultSlotX, resultSlotY);
+            }
+
             CraftingRecipe recipe = cachedLastCraftedRecipe.get();
             if (predictor.hasRequiredIngredients(recipe, predictor.getAvailableItems(playerInventory, cursorStack))) {
                 ItemStack resultStack = recipe.getResult(world.getRegistryManager());
@@ -96,6 +107,10 @@ public abstract class CraftingScreenMixin {
         }
 
         if (cachedSuggestedRecipe.isPresent()) {
+            if (showFirstTimeTooltips) {
+                renderTooltip(context, Text.translatable("tooltip.craftsense.click_here").getString(), Text.translatable("tooltip.craftsense.suggest").getString(), resultSlotX, resultSlotY);
+            }
+            
             CraftingRecipe recipe = cachedSuggestedRecipe.get();
             if (predictor.hasRequiredIngredients(recipe, predictor.getAvailableItems(playerInventory, cursorStack))) {
                 ItemStack resultStack = recipe.getResult(world.getRegistryManager());
@@ -151,6 +166,14 @@ public abstract class CraftingScreenMixin {
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void onSuggestedRecipeClick(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
         if (isMouseOverSlot((int) mouseX, (int) mouseY, resultSlotX, resultSlotY)) {
+            if (showFirstTimeTooltips) {
+                progress++;
+                if (progress >= 2) {
+                    showFirstTimeTooltips = false;
+                    CraftSense.configManager.toggleFirstTime();
+                }
+            }
+
             MinecraftClient client = MinecraftClient.getInstance();
             PlayerInventory playerInventory = client.player.getInventory();
             World world = client.world;
@@ -259,5 +282,18 @@ public abstract class CraftingScreenMixin {
             }
         }
         return null;
+    }
+
+    @Unique
+    private void renderTooltip(DrawContext context, String title, String description, int x, int y) {
+        List<Text> tooltip = new ArrayList<>();
+        tooltip.add(Text.literal(title).formatted(Formatting.WHITE));
+
+        String[] descriptionLines = description.split("\n");
+        for (String line : descriptionLines) {
+            tooltip.add(Text.literal(line).formatted(Formatting.GRAY));
+        }
+        
+        context.drawTooltip(MinecraftClient.getInstance().textRenderer, tooltip, x + 20, y + 5);
     }
 }
