@@ -3,6 +3,8 @@ package com.dooji.craftsense;
 import com.dooji.craftsense.manager.CategoryGenerator;
 import com.dooji.craftsense.manager.ConfigurationManager;
 import com.dooji.craftsense.manager.CraftSenseTracker;
+import com.dooji.craftsense.network.CraftSenseClientNetworking;
+import com.dooji.craftsense.network.payloads.RecipesRequestPayload;
 import com.dooji.craftsense.ui.CraftSenseStatsScreen;
 import com.dooji.omnilib.OmnilibClient;
 
@@ -10,6 +12,9 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -20,8 +25,13 @@ public class CraftSenseClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        CraftSenseClientNetworking.init();
         CraftSenseKeyBindings.register();
         CategoryGenerator.generateCategories();
+
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            ClientPlayNetworking.send(new RecipesRequestPayload());
+        });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player != null && !hasEnteredWorld) {
@@ -64,17 +74,17 @@ public class CraftSenseClient implements ClientModInitializer {
                 : Identifier.of("minecraft", "textures/block/redstone_lamp.png");
 
         OmnilibClient.showToast(
-            title,
-            description,
-            5000,
-            0xFFFFFF,
-            0xAAAAAA,
-            null,
-            iconTexture,
-            null,
-            16,
-            170,
-            32
+                title,
+                description,
+                5000,
+                0xFFFFFF,
+                0xAAAAAA,
+                null,
+                iconTexture,
+                null,
+                16,
+                170,
+                32
         );
     }
 }
