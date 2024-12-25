@@ -3,9 +3,11 @@ package com.dooji.craftsense.manager;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+
 import net.minecraft.item.Item;
-import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.registry.Registry;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,8 +44,8 @@ public class CategoryGenerator {
         specificCategories.put("TRAPDOOR", Collections.singletonList("TRAPDOOR"));
         specificCategories.put("BOAT", Collections.singletonList("BOAT"));
 
-        for (Item item : Registries.ITEM) {
-            Identifier itemId = Registries.ITEM.getId(item);
+        for (Item item : Registry.ITEM) {
+            Identifier itemId = Registry.ITEM.getId(item);
             String itemName = itemId.getPath().toUpperCase();
 
             if (isItemCategorized(categorizedItems, itemName)) {
