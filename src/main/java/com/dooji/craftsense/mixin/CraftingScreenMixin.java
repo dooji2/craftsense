@@ -4,16 +4,18 @@ import com.dooji.craftsense.CraftSense;
 import com.dooji.craftsense.CraftingPredictor;
 import com.dooji.craftsense.manager.CategoryHabitsTracker;
 import com.dooji.craftsense.network.payloads.CraftItemPayload;
+
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.screen.ingame.CraftingScreen;
-import net.minecraft.client.gui.tooltip.TooltipPositioner;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.client.render.*;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.RecipeInputInventory;
+import net.minecraft.inventory.CraftingInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.recipe.*;
@@ -23,11 +25,9 @@ import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Matrix4f;
 import net.minecraft.world.World;
-import org.jetbrains.annotations.Nullable;
-import org.joml.Matrix4f;
-import org.joml.Vector2i;
-import org.joml.Vector2ic;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -36,6 +36,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.*;
+
+import org.jetbrains.annotations.Nullable;
 
 import static com.dooji.craftsense.manager.CategoryManager.getCategory;
 
@@ -64,7 +66,7 @@ public abstract class CraftingScreenMixin {
     private int progress = 0;
 
     @Inject(method = "render", at = @At("TAIL"))
-    private void renderCraftingPrediction(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void renderCraftingPrediction(MatrixStack matrices, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!CraftSense.configManager.isEnabled()) {
             return;
         }
@@ -75,7 +77,7 @@ public abstract class CraftingScreenMixin {
         World world = client.world;
 
         CraftingScreenHandler handler = craftingScreen.getScreenHandler();
-        RecipeInputInventory input = ((CraftingScreenHandlerAccessor) handler).getInput();
+        CraftingInventory input = ((CraftingScreenHandlerAccessor) handler).getInput();
         ItemStack cursorStack = handler.getCursorStack();
 
         CraftingPredictor predictor = CraftingPredictor.getInstance(world.getRecipeManager());
@@ -99,26 +101,26 @@ public abstract class CraftingScreenMixin {
 
         if (cachedLastCraftedRecipe.isPresent()) {
             if (showFirstTimeTooltips) {
-                renderTooltip(context, Text.translatable("tooltip.craftsense.click_here").getString(), Text.translatable("tooltip.craftsense.lastCraftedSuggest").getString(), resultSlotX, resultSlotY);
+                renderTooltip(matrices, Text.translatable("tooltip.craftsense.click_here").getString(), Text.translatable("tooltip.craftsense.lastCraftedSuggest").getString(), resultSlotX, resultSlotY);
             }
 
             CraftingRecipe recipe = cachedLastCraftedRecipe.get();
             if (predictor.hasRequiredIngredients(recipe, predictor.getAvailableItems(playerInventory, cursorStack))) {
-                ItemStack resultStack = recipe.getOutput(world.getRegistryManager());
-                renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f, mouseX, mouseY, true);
+                ItemStack resultStack = recipe.getOutput();
+                renderGhostItem(matrices, resultStack, resultSlotX, resultSlotY, 0.2f, mouseX, mouseY, true);
                 return;
             }
         }
 
         if (cachedSuggestedRecipe.isPresent()) {
             if (showFirstTimeTooltips) {
-                renderTooltip(context, Text.translatable("tooltip.craftsense.click_here").getString(), Text.translatable("tooltip.craftsense.suggest").getString(), resultSlotX, resultSlotY);
+                renderTooltip(matrices, Text.translatable("tooltip.craftsense.click_here").getString(), Text.translatable("tooltip.craftsense.suggest").getString(), resultSlotX, resultSlotY);
             }
 
             CraftingRecipe recipe = cachedSuggestedRecipe.get();
             if (predictor.hasRequiredIngredients(recipe, predictor.getAvailableItems(playerInventory, cursorStack))) {
-                ItemStack resultStack = recipe.getOutput(world.getRegistryManager());
-                renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f, mouseX, mouseY, false);
+                ItemStack resultStack = recipe.getOutput();
+                renderGhostItem(matrices, resultStack, resultSlotX, resultSlotY, 0.2f, mouseX, mouseY, false);
 
                 if (recipe instanceof ShapedRecipe shapedRecipe) {
                     int recipeWidth = shapedRecipe.getWidth();
@@ -157,7 +159,7 @@ public abstract class CraftingScreenMixin {
                                 ItemStack[] matchingStacks = ingredient.getMatchingStacks();
                                 if (matchingStacks.length > 0) {
                                     ItemStack ghostStack = matchingStacks[0];
-                                    renderGhostItem(context, ghostStack, slotX, slotY, 0.2f, mouseX, mouseY, false);
+                                    renderGhostItem(matrices, ghostStack, slotX, slotY, 0.2f, mouseX, mouseY, false);
                                 }
                             }
                         }
@@ -184,7 +186,7 @@ public abstract class CraftingScreenMixin {
                                 Slot slot = handler.slots.get(i + 1);
                                 int slotX = screenX + slot.x;
                                 int slotY = screenY + slot.y;
-                                renderGhostItem(context, ghostStack, slotX, slotY, 0.2f, mouseX, mouseY, false);
+                                renderGhostItem(matrices, ghostStack, slotX, slotY, 0.2f, mouseX, mouseY, false);
                             }
                             ingredientIndex++;
                         }
@@ -210,7 +212,7 @@ public abstract class CraftingScreenMixin {
             World world = client.world;
 
             CraftingScreenHandler handler = ((CraftingScreen) (Object) this).getScreenHandler();
-            RecipeInputInventory input = ((CraftingScreenHandlerAccessor) handler).getInput();
+            CraftingInventory input = ((CraftingScreenHandlerAccessor) handler).getInput();
             CraftingPredictor predictor = CraftingPredictor.getInstance(world.getRecipeManager());
             Optional<CraftingRecipe> lastCraftedRecipe = predictor.suggestLastCraftedItem(input, playerInventory, handler.getCursorStack(), world);
             Optional<CraftingRecipe> optionalRecipe = lastCraftedRecipe.isPresent()
@@ -222,7 +224,7 @@ public abstract class CraftingScreenMixin {
                 Identifier recipeId = findRecipeId(world.getRecipeManager(), recipe);
 
                 if (recipeId != null) {
-                    ItemStack resultStack = recipe.getOutput(world.getRegistryManager()).copy();
+                    ItemStack resultStack = recipe.getOutput().copy();
                     ItemStack cursorStack = handler.getCursorStack();
 
                     if (cursorStack.isEmpty()) {
@@ -250,16 +252,16 @@ public abstract class CraftingScreenMixin {
     }
 
     @Unique
-    private void renderGhostItem(DrawContext context, ItemStack stack, int x, int y, float opacity, int mouseX, int mouseY, boolean isLastCrafted) {
-        context.getMatrices().push();
-        context.getMatrices().translate(0, 0, -100);
+    private void renderGhostItem(MatrixStack matrices, ItemStack stack, int x, int y, float opacity, int mouseX, int mouseY, boolean isLastCrafted) {
+        matrices.push();
+        matrices.translate(0, 0, -100);
 
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
 
-        context.drawItemWithoutEntity(stack, x, y);
+        drawItem(stack, x, y);
 
-        drawTransparentRectangle(context, x, y, x + 16, y + 16, 200, opacity);
+        drawTransparentRectangle(matrices, x, y, x + 16, y + 16, 300, opacity);
 
         if (mouseX >= x && mouseX < x + 16 && mouseY >= y && mouseY < y + 16) {
             List<Text> tooltip = new ArrayList<>();
@@ -267,24 +269,30 @@ public abstract class CraftingScreenMixin {
             if (isLastCrafted) {
                 tooltip.add(Text.translatable("tooltip.craftsense.last_crafted_item").formatted(Formatting.GRAY, Formatting.ITALIC));
             }
-            context.drawTooltip(MinecraftClient.getInstance().textRenderer, tooltip, mouseX, mouseY);
+            ((HandledScreen<?>) (Object) this).renderTooltip(matrices, tooltip, mouseX, mouseY);
         }
 
         RenderSystem.disableBlend();
-        context.getMatrices().pop();
+        matrices.pop();
     }
 
     @Unique
-    private void drawTransparentRectangle(DrawContext context, int x1, int y1, int x2, int y2, int z, float alpha) {
-        Matrix4f matrix = context.getMatrices().peek().getPositionMatrix();
-        VertexConsumer vertexConsumer = context.getVertexConsumers().getBuffer(RenderLayer.getGui());
+    private void drawTransparentRectangle(MatrixStack matrices, int x1, int y1, int x2, int y2, int z, float alpha) {
+        Matrix4f matrix = matrices.peek().getPositionMatrix();
+        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
 
-        vertexConsumer.vertex(matrix, x1, y1, z).color(255, 255, 255, (int)(alpha * 255)).next();
-        vertexConsumer.vertex(matrix, x1, y2, z).color(255, 255, 255, (int)(alpha * 255)).next();
-        vertexConsumer.vertex(matrix, x2, y2, z).color(255, 255, 255, (int)(alpha * 255)).next();
-        vertexConsumer.vertex(matrix, x2, y1, z).color(255, 255, 255, (int)(alpha * 255)).next();
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.setShader(GameRenderer::getPositionColorShader);
 
-        context.draw();
+        buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+        buffer.vertex(matrix, x1, y1, z).color(255, 255, 255, (int) (alpha * 255)).next();
+        buffer.vertex(matrix, x1, y2, z).color(255, 255, 255, (int) (alpha * 255)).next();
+        buffer.vertex(matrix, x2, y2, z).color(255, 255, 255, (int) (alpha * 255)).next();
+        buffer.vertex(matrix, x2, y1, z).color(255, 255, 255, (int) (alpha * 255)).next();
+
+        BufferRenderer.drawWithShader(buffer.end());
+        RenderSystem.disableBlend();
     }
 
     @Unique
@@ -317,16 +325,21 @@ public abstract class CraftingScreenMixin {
     }
 
     @Unique
-    private void renderTooltip(DrawContext context, String title, String description, int x, int y) {
-        List<OrderedText> tooltip = new ArrayList<>();
-        tooltip.add(Text.literal(title).formatted(Formatting.WHITE).asOrderedText());
+    private void renderTooltip(MatrixStack matrices, String title, String description, int x, int y) {
+        List<Text> tooltip = new ArrayList<>();
+        tooltip.add(Text.literal(title).formatted(Formatting.WHITE));
 
         String[] descriptionLines = description.split("\n");
         for (String line : descriptionLines) {
-            tooltip.add(Text.literal(line).formatted(Formatting.GRAY).asOrderedText());
+            tooltip.add(Text.literal(line).formatted(Formatting.GRAY));
         }
-        
-        TooltipPositioner fixedPositioner = (screenWidth, screenHeight, tooltipX, tooltipY, tooltipWidth, tooltipHeight) -> new Vector2i(tooltipX, tooltipY);
-        context.drawTooltip(MinecraftClient.getInstance().textRenderer, tooltip, fixedPositioner, x + 30, y - 7);
+
+        ((HandledScreen<?>) (Object) this).renderTooltip(matrices, tooltip, x + 20, y + 3);
+    }
+
+    @Unique
+    private void drawItem(ItemStack itemStack, int x, int y) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        client.getItemRenderer().renderInGui(itemStack, x, y);
     }
 }

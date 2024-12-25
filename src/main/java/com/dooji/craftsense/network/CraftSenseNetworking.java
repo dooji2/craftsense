@@ -2,14 +2,16 @@ package com.dooji.craftsense.network;
 
 import com.dooji.craftsense.mixin.CraftingScreenHandlerAccessor;
 import com.dooji.craftsense.network.payloads.CraftItemPayload;
+
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+
 import net.minecraft.recipe.Ingredient;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.recipe.CraftingRecipe;
 import net.minecraft.recipe.RecipeManager;
 import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.RecipeInputInventory;
+import net.minecraft.inventory.CraftingInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.CraftingScreenHandler;
 import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket;
@@ -40,8 +42,8 @@ public class CraftSenseNetworking {
             PlayerInventory inventory = player.getInventory();
 
             if (player.currentScreenHandler instanceof CraftingScreenHandler handler) {
-                RecipeInputInventory gridInventory = ((CraftingScreenHandlerAccessor) handler).getInput();
-                ItemStack resultStack = recipe.getOutput(player.getServer().getRegistryManager()).copy();
+                CraftingInventory gridInventory = ((CraftingScreenHandlerAccessor) handler).getInput();
+                ItemStack resultStack = recipe.getOutput().copy();
                 ItemStack cursorStack = handler.getCursorStack();
 
                 if (cursorStack.isEmpty()) {
@@ -77,7 +79,7 @@ public class CraftSenseNetworking {
         return !stack1.hasNbt() && !stack2.hasNbt();
     }
 
-    private static boolean hasAllIngredients(PlayerInventory inventory, RecipeInputInventory gridInventory, CraftingRecipe recipe) {
+    private static boolean hasAllIngredients(PlayerInventory inventory, CraftingInventory gridInventory, CraftingRecipe recipe) {
         for (var ingredient : recipe.getIngredients()) {
             boolean found = false;
             for (int i = 0; i < gridInventory.size(); i++) {
@@ -98,7 +100,7 @@ public class CraftSenseNetworking {
         return false;
     }
 
-    private static void consumeIngredients(CraftingRecipe recipe, RecipeInputInventory gridInventory, PlayerInventory inventory) {
+    private static void consumeIngredients(CraftingRecipe recipe, CraftingInventory gridInventory, PlayerInventory inventory) {
         Map<Ingredient, Integer> ingredientsNeeded = new HashMap<>();
 
         for (var ingredient : recipe.getIngredients()) {
@@ -118,7 +120,7 @@ public class CraftSenseNetworking {
         }
     }
 
-    private static int consumeFromGrid(Ingredient ingredient, RecipeInputInventory gridInventory, int requiredAmount) {
+    private static int consumeFromGrid(Ingredient ingredient, CraftingInventory gridInventory, int requiredAmount) {
         int amountConsumed = 0;
 
         for (int i = 0; i < gridInventory.size(); i++) {
@@ -154,7 +156,7 @@ public class CraftSenseNetworking {
     }
 
     private static void clearGridAndSync(CraftingScreenHandler handler, ServerPlayerEntity player) {
-        RecipeInputInventory gridInventory = ((CraftingScreenHandlerAccessor) handler).getInput();
+        CraftingInventory gridInventory = ((CraftingScreenHandlerAccessor) handler).getInput();
 
         for (int i = 0; i < gridInventory.size(); i++) {
             ItemStack currentStack = gridInventory.getStack(i);
