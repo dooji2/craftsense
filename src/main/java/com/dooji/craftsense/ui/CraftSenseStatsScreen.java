@@ -6,13 +6,14 @@ import com.dooji.omnilib.OmnilibClient;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawableHelper;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.ColorHelper.Argb;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.util.registry.Registry;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -104,7 +105,7 @@ public class CraftSenseStatsScreen extends Screen {
             List<Map.Entry<String, Integer>> items = tracker.itemCraftCount.entrySet().stream()
                     .filter(entry -> {
                         String translationKey = entry.getKey();
-                        return Registries.ITEM.stream()
+                        return Registry.ITEM.stream()
                                 .filter(item -> item.getTranslationKey().equals(translationKey))
                                 .findFirst()
                                 .map(item -> category.equals(CategoryManager.getCategory(item)))
@@ -121,37 +122,37 @@ public class CraftSenseStatsScreen extends Screen {
     protected void init() {
         int paginationButtonY = 50;
 
-        prevButton = ButtonWidget.builder(
-                        Text.translatable("screen.craftsense.stats.previous"),
-                        button -> {
-                            if (currentPage > 0) {
-                                currentPage--;
-                                updateButtonStates();
-                            }
-                        }
-                ).dimensions(this.width / 2 - 150, paginationButtonY, 80, 20)
-                .build();
+        prevButton = new ButtonWidget(
+                this.width / 2 - 150, paginationButtonY, 80, 20,
+                Text.translatable("screen.craftsense.stats.previous"),
+                button -> {
+                    if (currentPage > 0) {
+                        currentPage--;
+                        updateButtonStates();
+                    }
+                }
+        );
         this.addDrawableChild(prevButton);
 
         pageIndicator = Text.translatable("screen.craftsense.stats.page", currentPage + 1, maxPages);
 
-        nextButton = ButtonWidget.builder(
-                        Text.translatable("screen.craftsense.stats.next"),
-                        button -> {
-                            if (currentPage < maxPages - 1) {
-                                currentPage++;
-                                updateButtonStates();
-                            }
-                        }
-                ).dimensions(this.width / 2 + 70, paginationButtonY, 80, 20)
-                .build();
+        nextButton = new ButtonWidget(
+                this.width / 2 + 70, paginationButtonY, 80, 20,
+                Text.translatable("screen.craftsense.stats.next"),
+                button -> {
+                    if (currentPage < maxPages - 1) {
+                        currentPage++;
+                        updateButtonStates();
+                    }
+                }
+        );
         this.addDrawableChild(nextButton);
 
-        ButtonWidget closeButton = ButtonWidget.builder(
-                        Text.translatable("screen.craftsense.stats.done"),
-                        button -> this.close()
-                ).dimensions(this.width / 2 - 50, this.height - 30, 100, 20)
-                .build();
+        ButtonWidget closeButton = new ButtonWidget(
+                this.width / 2 - 50, this.height - 30, 100, 20,
+                Text.translatable("screen.craftsense.stats.done"),
+                button -> this.close()
+        );
         this.addDrawableChild(closeButton);
 
         updateButtonStates();
@@ -166,22 +167,22 @@ public class CraftSenseStatsScreen extends Screen {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        super.renderBackground(context);
-        super.render(context, mouseX, mouseY, delta);
+    public void render(MatrixStack matrices, int mouseX, int mouseY, float delta) {
+        super.renderBackground(matrices);
+        super.render(matrices, mouseX, mouseY, delta);
 
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 20, 0xFFFFFF);
+        DrawableHelper.drawCenteredTextWithShadow(matrices, this.textRenderer, this.title.asOrderedText(), this.width / 2, 20, 0xFFFFFF);
 
         int paginationY = 55;
-        context.drawCenteredTextWithShadow(this.textRenderer, pageIndicator, this.width / 2, paginationY, 0xFFFFFF);
+        DrawableHelper.drawCenteredTextWithShadow(matrices, this.textRenderer, pageIndicator.asOrderedText(), this.width / 2, paginationY, 0xFFFFFF);
 
         int graphTop = paginationY + 20;
         int graphBottom = this.height - 45;
         int graphCenterY = (graphTop + graphBottom) / 2 - (graphHeight / 2);
-        renderGraph(context, mouseX, mouseY, graphCenterY);
+        renderGraph(matrices, mouseX, mouseY, graphCenterY);
     }
 
-    private void renderGraph(DrawContext context, int mouseX, int mouseY, int graphY) {
+    private void renderGraph(MatrixStack matrices, int mouseX, int mouseY, int graphY) {
         int maxVisibleCategories = Math.min(categoriesPerPage, categoryTotals.size());
         int totalGraphWidth = maxVisibleCategories * (BAR_WIDTH + 5) - 5;
         int graphX = (this.width - totalGraphWidth) / 2;
@@ -204,7 +205,7 @@ public class CraftSenseStatsScreen extends Screen {
             int barHeight = (int) ((double) count / maxValue * graphHeight);
             int barColor = barColors.get(colorIndex % barColors.size());
 
-            context.fillGradient(xOffset, graphY + (graphHeight - barHeight), xOffset + BAR_WIDTH, graphY + graphHeight, barColor, barColor);
+            DrawableHelper.fillGradient(matrices, xOffset, graphY + (graphHeight - barHeight), xOffset + BAR_WIDTH, graphY + graphHeight, barColor, barColor, this.getZOffset());
 
             int maxTextWidth = BAR_WIDTH + 2;
             String displayText = category;
@@ -212,17 +213,19 @@ public class CraftSenseStatsScreen extends Screen {
                 displayText = trimTextToFit(category, maxTextWidth, textRenderer);
             }
 
-            context.drawCenteredTextWithShadow(
+            DrawableHelper.drawCenteredTextWithShadow(
+                    matrices,
                     this.textRenderer,
-                    Text.literal(displayText),
+                    Text.literal(displayText).asOrderedText(),
                     xOffset + BAR_WIDTH / 2,
                     legendYOffset,
                     0xFFFFFF
             );
 
-            context.drawCenteredTextWithShadow(
+            DrawableHelper.drawCenteredTextWithShadow(
+                    matrices,
                     this.textRenderer,
-                    Text.literal(formatNumberShorthand(count)),
+                    Text.literal(formatNumberShorthand(count)).asOrderedText(),
                     xOffset + BAR_WIDTH / 2,
                     graphY + (graphHeight - barHeight) - 10,
                     0xFFFFFF
@@ -236,7 +239,7 @@ public class CraftSenseStatsScreen extends Screen {
                 if (items != null && !items.isEmpty()) {
                     for (Map.Entry<String, Integer> itemEntry : items) {
                         String itemTranslationKey = itemEntry.getKey();
-                        Registries.ITEM.stream()
+                        Registry.ITEM.stream()
                                 .filter(item -> item.getTranslationKey().equals(itemTranslationKey))
                                 .findFirst()
                                 .ifPresent(item -> {
@@ -255,7 +258,7 @@ public class CraftSenseStatsScreen extends Screen {
 
         if (showTooltip && tooltipCategory != null) {
             OmnilibClient.showTooltip(
-                    context,
+                    matrices,
                     this.textRenderer,
                     tooltipCategory,
                     tooltipItemStacks,
