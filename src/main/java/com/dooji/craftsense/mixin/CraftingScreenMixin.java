@@ -62,14 +62,19 @@ import java.util.Optional;
 public abstract class CraftingScreenMixin {
     @Unique
     private int resultSlotX;
+
     @Unique
     private int resultSlotY;
+
     @Unique
     private String lastGridHash = "";
+
     @Unique
     private static final ContextParameterMap EMPTY_CONTEXT_PARAMETER_MAP = new ContextParameterMap.Builder().build(new ContextType.Builder().build());
+
     @Unique
     private Optional<CraftingRecipe> cachedLastCraftedRecipe = Optional.empty();
+
     @Unique
     private Optional<CraftingRecipe> cachedSuggestedRecipe = Optional.empty();
 
@@ -79,13 +84,15 @@ public abstract class CraftingScreenMixin {
     @Unique
     private int progress = 0;
 
+    @Unique
+    private long lastMouseClickTime = 0;
+
+    @Unique
+    private long lastKeyPressTime = 0;
+
     @Inject(method = "render", at = @At("TAIL"))
     private void renderCraftingPrediction(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (!CraftSense.configManager.isEnabled()) {
-            return;
-        }
-
-        if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen craftingScreen)) {
+        if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen craftingScreen) || !CraftSense.configManager.isEnabled()) {
             return;
         }
 
@@ -136,7 +143,7 @@ public abstract class CraftingScreenMixin {
             if (predictor.hasRequiredIngredients(recipe, predictor.getAvailableItems(playerInventory, cursorStack))) {
                 ItemStack resultStack = getRecipeResult(recipe);
                 renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f, mouseX, mouseY, false);
-        
+
                 if (recipe instanceof ShapedRecipe shapedRecipe) {
                     int recipeWidth = shapedRecipe.getWidth();
                     int recipeHeight = shapedRecipe.getHeight();
@@ -172,7 +179,7 @@ public abstract class CraftingScreenMixin {
 
                                         int gridX = bestOffsetX + recipeX;
                                         int gridY = bestOffsetY + recipeY;
-                                        
+
                                         int gridIndex = gridY * 3 + gridX;
                                         Slot slot = handler.slots.get(gridIndex + 1);
                                         int slotX = screenX + slot.x;
@@ -193,9 +200,19 @@ public abstract class CraftingScreenMixin {
     private void onSuggestedRecipeClick(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
         boolean isShiftPressed = InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow().getHandle(), InputUtil.GLFW_KEY_LEFT_SHIFT);
 
-        if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen craftingScreen)) {
+        if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen craftingScreen) || !CraftSense.configManager.isEnabled()) {
             return;
         }
+
+        long cooldownDuration = 100;
+        long currentTime = System.currentTimeMillis();
+
+        if (currentTime - lastMouseClickTime < cooldownDuration) {
+            cir.setReturnValue(false);
+            return;
+        }
+
+        lastMouseClickTime = currentTime;
 
         MinecraftClient client = MinecraftClient.getInstance();
         CraftingScreenHandler handler = craftingScreen.getScreenHandler();
@@ -245,10 +262,24 @@ public abstract class CraftingScreenMixin {
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
+        if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen) || !CraftSense.configManager.isEnabled()) {
+            return;
+        }
+
+        long cooldownDuration = 100;
+        long currentTime = System.currentTimeMillis();
+
+        if (currentTime - lastKeyPressTime < cooldownDuration) {
+            cir.setReturnValue(false);
+            return;
+        }
+
+        lastKeyPressTime = currentTime;
+
         if (CraftSenseKeyBindings.quickCraftKey.matchesKey(keyCode, scanCode)) {
             MinecraftClient client = MinecraftClient.getInstance();
 
-            if (client.player != null && client.world != null && client.currentScreen instanceof CraftingScreen) {
+            if (client.player != null && client.world != null) {
                 CraftingScreenHandler handler = ((CraftingScreen) (Object) this).getScreenHandler();
                 PlayerInventory inventory = client.player.getInventory();
                 RecipeInputInventory input = ((CraftingScreenHandlerAccessor) handler).getCraftingInventory();
@@ -375,6 +406,7 @@ public abstract class CraftingScreenMixin {
         return null;
     }
 
+    @Unique
     private ItemStack getRecipeResult(CraftingRecipe recipe) {
         if (recipe instanceof ShapedRecipeAccessor shaped) {
             return shaped.getResult().copy();
