@@ -8,6 +8,7 @@ import org.lwjgl.glfw.GLFW;
 public class CraftSenseKeyBindings {
     public static KeyBinding toggleKey;
     public static KeyBinding openStatsKey;
+    public static KeyBinding quickCraftKey;
 
     public static void register() {
         toggleKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
@@ -21,6 +22,13 @@ public class CraftSenseKeyBindings {
                 "key.craftsense.open_stats",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_J,
+                "category.craftsense"
+        ));
+
+        quickCraftKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.craftsense.quick_craft",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_Z,
                 "category.craftsense"
         ));
     }
