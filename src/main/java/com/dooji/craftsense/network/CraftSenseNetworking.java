@@ -44,22 +44,25 @@ public class CraftSenseNetworking {
                 ItemStack resultStack = recipe.getOutput(player.getServer().getRegistryManager()).copy();
                 ItemStack cursorStack = handler.getCursorStack();
 
-                if (cursorStack.isEmpty()) {
-                    handler.setCursorStack(resultStack);
-                } else if (areStacksEqualWithComponents(cursorStack, resultStack)) {
-                    cursorStack.increment(resultStack.getCount());
-                    handler.setCursorStack(cursorStack);
+                if (payload.isShiftPressed()) {
+                    if (!placeInInventoryOrCursor(inventory, resultStack, player)) {
+                        return;
+                    }
                 } else {
-                    return;
+                    if (cursorStack.isEmpty()) {
+                        handler.setCursorStack(resultStack);
+                        sendSlotUpdate(player, handler.syncId, -1, resultStack);
+                    } else if (areStacksEqualWithComponents(cursorStack, resultStack)) {
+                        cursorStack.increment(resultStack.getCount());
+                        handler.setCursorStack(cursorStack);
+                        sendSlotUpdate(player, handler.syncId, -1, cursorStack);
+                    } else {
+                        return;
+                    }
                 }
 
-                if (hasAllIngredients(inventory, gridInventory, recipe)) {
-                    consumeIngredients(recipe, gridInventory, inventory);
-
-                    player.networkHandler.sendPacket(new ScreenHandlerSlotUpdateS2CPacket(
-                            handler.syncId, -1, 0, handler.getCursorStack()
-                    ));
-
+                if (hasAllIngredients(inventory, gridInventory, recipe, cursorStack)) {
+                    consumeIngredients(recipe, gridInventory, inventory, cursorStack);
                     clearGridAndSync(handler, player);
                 }
             }
@@ -77,7 +80,7 @@ public class CraftSenseNetworking {
         return !stack1.hasNbt() && !stack2.hasNbt();
     }
 
-    private static boolean hasAllIngredients(PlayerInventory inventory, RecipeInputInventory gridInventory, CraftingRecipe recipe) {
+    private static boolean hasAllIngredients(PlayerInventory inventory, RecipeInputInventory gridInventory, CraftingRecipe recipe, ItemStack cursorStack) {
         for (var ingredient : recipe.getIngredients()) {
             boolean found = false;
             for (int i = 0; i < gridInventory.size(); i++) {
@@ -86,8 +89,16 @@ public class CraftSenseNetworking {
                     break;
                 }
             }
-            if (!found && !findInInventory(inventory, ingredient)) return false;
+
+            if (!found && ingredient.test(cursorStack)) {
+                found = true;
+            }
+
+            if (!found && !findInInventory(inventory, ingredient)) {
+                return false;
+            }
         }
+
         return true;
     }
 
@@ -95,10 +106,11 @@ public class CraftSenseNetworking {
         for (int i = 0; i < inventory.size(); i++) {
             if (ingredient.test(inventory.getStack(i))) return true;
         }
+
         return false;
     }
 
-    private static void consumeIngredients(CraftingRecipe recipe, RecipeInputInventory gridInventory, PlayerInventory inventory) {
+    private static void consumeIngredients(CraftingRecipe recipe, RecipeInputInventory gridInventory, PlayerInventory inventory, ItemStack cursorStack) {
         Map<Ingredient, Integer> ingredientsNeeded = new HashMap<>();
 
         for (var ingredient : recipe.getIngredients()) {
@@ -111,6 +123,12 @@ public class CraftSenseNetworking {
 
             int consumedFromGrid = consumeFromGrid(ingredient, gridInventory, requiredAmount);
             requiredAmount -= consumedFromGrid;
+
+            if (requiredAmount > 0 && ingredient.test(cursorStack)) {
+                int toConsume = Math.min(requiredAmount, cursorStack.getCount());
+                cursorStack.decrement(toConsume);
+                requiredAmount -= toConsume;
+            }
 
             if (requiredAmount > 0) {
                 consumeFromInventory(ingredient, inventory, requiredAmount);
@@ -165,6 +183,41 @@ public class CraftSenseNetworking {
             player.networkHandler.sendPacket(new ScreenHandlerSlotUpdateS2CPacket(
                     handler.syncId, i + 1, 0, currentStack
             ));
+        }
+    }
+
+    private static boolean placeInInventoryOrCursor(PlayerInventory inventory, ItemStack stack, ServerPlayerEntity player) {
+        for (int i = 0; i < PlayerInventory.MAIN_SIZE; i++) {
+            ItemStack slotStack = inventory.getStack(i);
+            if (ItemStack.areItemsEqual(slotStack, stack) && slotStack.getCount() < slotStack.getMaxCount()) {
+                int transferable = Math.min(stack.getCount(), slotStack.getMaxCount() - slotStack.getCount());
+                slotStack.increment(transferable);
+                stack.decrement(transferable);
+                sendSlotUpdate(player, 0, i, slotStack);
+
+                if (stack.isEmpty()) {
+                    return true;
+                }
+            }
+        }
+
+        for (int i = 0; i < PlayerInventory.MAIN_SIZE; i++) {
+            ItemStack slotStack = inventory.getStack(i);
+            if (slotStack.isEmpty()) {
+                inventory.setStack(i, stack);
+                sendSlotUpdate(player, 0, i, stack);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void sendSlotUpdate(ServerPlayerEntity player, int syncId, int slot, ItemStack stack) {
+        if (slot == -1) {
+            player.networkHandler.sendPacket(new ScreenHandlerSlotUpdateS2CPacket(syncId, -1, 0, stack));
+        } else {
+            player.networkHandler.sendPacket(new ScreenHandlerSlotUpdateS2CPacket(syncId, 0, slot, stack));
         }
     }
 }
