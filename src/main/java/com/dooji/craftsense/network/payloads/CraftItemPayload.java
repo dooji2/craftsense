@@ -6,12 +6,14 @@ import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
-public record CraftItemPayload(String recipeId) implements CustomPayload {
+public record CraftItemPayload(String recipeId, boolean isShiftPressed) implements CustomPayload {
     public static final CustomPayload.Id<CraftItemPayload> ID = new CustomPayload.Id<>(Identifier.of("craftsense", "craft_item"));
 
     public static final PacketCodec<RegistryByteBuf, CraftItemPayload> CODEC = PacketCodec.tuple(
             PacketCodecs.STRING,
             CraftItemPayload::recipeId,
+            PacketCodecs.BOOL,
+            CraftItemPayload::isShiftPressed,
             CraftItemPayload::new
     );
 
