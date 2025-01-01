@@ -75,7 +75,6 @@ public abstract class CraftingScreenMixin {
             return;
         }
 
-        CraftingScreen craftingScreen = (CraftingScreen) (Object) this;
         MinecraftClient client = MinecraftClient.getInstance();
         PlayerInventory playerInventory = client.player.getInventory();
         World world = client.world;
