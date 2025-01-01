@@ -1,18 +1,19 @@
 package com.dooji.craftsense.mixin;
 
 import com.dooji.craftsense.CraftSense;
+import com.dooji.craftsense.CraftSenseKeyBindings;
 import com.dooji.craftsense.CraftingPredictor;
 import com.dooji.craftsense.manager.CategoryHabitsTracker;
 import com.dooji.craftsense.network.payloads.CraftItemPayload;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.CraftingScreen;
 import net.minecraft.client.gui.tooltip.TooltipPositioner;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.RecipeInputInventory;
 import net.minecraft.item.ItemStack;
@@ -27,7 +28,6 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Vector2i;
-import org.joml.Vector2ic;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -169,6 +169,8 @@ public abstract class CraftingScreenMixin {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void onSuggestedRecipeClick(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
+        boolean isShiftPressed = InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow().getHandle(), InputUtil.GLFW_KEY_LEFT_SHIFT);
+
         if (isMouseOverSlot((int) mouseX, (int) mouseY, resultSlotX, resultSlotY)) {
             if (showFirstTimeTooltips) {
                 progress++;
@@ -197,25 +199,59 @@ public abstract class CraftingScreenMixin {
 
                 if (recipeId != null) {
                     ItemStack resultStack = recipe.getResult(world.getRegistryManager()).copy();
-                    ItemStack cursorStack = handler.getCursorStack();
-
-                    if (cursorStack.isEmpty()) {
-                        handler.setCursorStack(resultStack);
-                    } else if (areStacksEqualWithComponents(cursorStack, resultStack) && resultStack.isStackable()) {
-                        cursorStack.increment(resultStack.getCount());
-                        handler.setCursorStack(cursorStack);
-                    } else {
-                        return;
-                    }
 
                     CategoryHabitsTracker habitsConfig = CategoryHabitsTracker.getInstance();
                     String category = getCategory(resultStack.getItem());
                     habitsConfig.recordCraft(category, resultStack.getItem().getTranslationKey());
 
-                    ClientPlayNetworking.send(new CraftItemPayload(recipeId.toString()));
+                    ClientPlayNetworking.send(new CraftItemPayload(recipeId.toString(), isShiftPressed));
 
                     cir.setReturnValue(true);
                 }
+            }
+        }
+    }
+
+    @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
+    private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
+        if (CraftSenseKeyBindings.quickCraftKey.matchesKey(keyCode, scanCode)) {
+            MinecraftClient client = MinecraftClient.getInstance();
+            
+            if (client.player != null && client.world != null && client.currentScreen instanceof CraftingScreen) {
+                CraftingScreenHandler handler = ((CraftingScreen) (Object) this).getScreenHandler();
+                PlayerInventory inventory = client.player.getInventory();
+                RecipeInputInventory input = ((CraftingScreenHandlerAccessor) handler).getInput();
+                ItemStack cursorStack = handler.getCursorStack();
+
+                CraftingPredictor predictor = CraftingPredictor.getInstance(client.world.getRecipeManager());
+                String currentStateHash = predictor.calculateInputHash(input, inventory, cursorStack);
+
+                if (!currentStateHash.equals(lastGridHash)) {
+                    lastGridHash = currentStateHash;
+                    cachedLastCraftedRecipe = predictor.suggestLastCraftedItem(input, inventory, cursorStack, client.world);
+                    if (cachedLastCraftedRecipe.isEmpty()) {
+                        cachedSuggestedRecipe = predictor.suggestRecipe(input, inventory, cursorStack, client.world);
+                    } else {
+                        cachedSuggestedRecipe = Optional.empty();
+                    }
+                }
+
+                Optional<CraftingRecipe> recipe = cachedSuggestedRecipe.isPresent() ? cachedSuggestedRecipe : cachedLastCraftedRecipe;
+
+                recipe.ifPresent(r -> {
+                    Identifier recipeId = findRecipeId(client.world.getRecipeManager(), r);
+                    if (recipeId != null) {
+                        ItemStack resultStack = r.getResult(client.world.getRegistryManager());
+                        String category = getCategory(resultStack.getItem());
+
+                        CategoryHabitsTracker habitsConfig = CategoryHabitsTracker.getInstance();
+                        habitsConfig.recordCraft(category, resultStack.getItem().getTranslationKey());
+
+                        ClientPlayNetworking.send(new CraftItemPayload(recipeId.toString(), true));
+                    }
+                });
+
+                cir.setReturnValue(true);
             }
         }
     }
