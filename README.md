@@ -1,6 +1,8 @@
 # CraftSense
 
-**CraftSense** is a Minecraft mod that helps players with crafting by predicting and suggesting crafting recipes based on their previous crafting habits. The mod analyzes items in the player’s inventory, recommends possible crafting recipes and allows for instant crafting by simply clicking on the suggested output to make the crafting process faster and easier. It can be enabled or disabled with a customizable keybind (`K` by default), allowing you to easily toggle it on or off.
+**CraftSense** is a Minecraft mod that makes crafting easier and faster. It "looks" at the items in your inventory and predicts crafting recipes based on what you’ve crafted before. You can instantly craft suggested recipes by clicking on them (without placing all ingredients in) or using a customizable keybind (`Z` by default). It can be enabled or disabled with a customizable keybind (`K` by default).
+
+The mod also includes several additional features - keep reading to learn more!
 
 <a href="https://modrinth.com/mod/omnilib">
   <img src="https://cdn.modrinth.com/data/cached_images/c6d909828e500ee3995b6401247dcf3acd757e1f_0.webp" alt="Requires Omnilib" width="256">
@@ -12,14 +14,20 @@
 
 ## Features
 
-- **Crafting Prediction**: Get suggestions for crafting recipes based on available items and recent crafting patterns. Similar to text autocomplete, as you place items in the crafting grid, CraftSense will analyze your inventory and provide real-time suggestions for crafting outcomes. You can simply click on the suggested recipe output item to automatically craft it, receiving the item in your inventory.
-- **Remembers Your Last Craft**: CraftSense remembers the last item you crafted. If you have the materials, it automatically appears in the crafting output slot, ready for instant one-click crafting.
-- **Category-Based Tracking**: CraftSense organizes items by category, tracking your most crafted items to make better predictions in the future.
-- **On-Screen Display**: Ghost items are shown in the crafting grid to guide you through suggested recipes, enhancing the crafting experience by visually indicating what can be created.
-- **Supports Other Mods**: Works with recipes from other mods.
-- **Context Awareness**: If your health is low and you have no weapons but have the required materials, CraftSense will prioritize weapon suggestions over your crafting habits.
-- **Crafting Statistics Screen**: Press `J` (default) to access the statistics screen displaying your crafting patterns. Hover over graph elements to view detailed data on crafted items within each category.
+- **Recipe Suggestions** - CraftSense predicts crafting recipes based on the items you have and your crafting history. Suggestions appear as you place items in the grid.
+- **Instant Crafting** - When a suggestion is visible, click on the output slot to craft it. You can also use Shift + Click or a custom keybind (`Z` by default) for quick crafting.
+- **Remembers Your Last Craft** - The mod remembers the last item you crafted. If you have the materials, it automatically shows up in the output slot, so you can just click on it!
+- **Category-Based Tracking** - Tracks your most crafted items by category to improve predictions.
+- **Visual Hints** - Displays ghost items in the crafting grid to guide you on how/what you can craft.
+- **Supports Other Mods** - Works with recipes from other mods.
+- **(Some) Context Awareness** - If your health is low and you have no weapons but have the required materials, CraftSense will prioritize weapon suggestions over your crafting habits.
+- **Crafting Statistics Screen** - Press `J` (default) to see detailed stats about your crafting habits, with graphs showing your most crafted items.
 
 ## **Usage Guidelines**
 
 **CraftSense** can be freely included in modpacks, as long as downloads stay within **Modrinth**, **CurseForge**, or **GitHub**. These are the only official sources for the mod. Any other sites are not authorized and should not be used.
+
+**Official Downloads**:
+- CurseForge: https://www.curseforge.com/minecraft/mc-mods/craftsense
+- GitHub: https://github.com/dooji2/craftsense
+- Modrinth: https://modrinth.com/mod/craftsense
