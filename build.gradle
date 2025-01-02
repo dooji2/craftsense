@@ -61,6 +61,16 @@ jar {
 	}
 }
 
+tasks.named('remapJar') {
+	def minecraftVersion = project.minecraft_version
+	def modVersion = project.mod_version
+	def namespace = project.archives_base_name
+
+	archiveBaseName.set("${namespace}-${minecraftVersion}-v${modVersion}")
+
+	archiveVersion.set("")
+}
+
 // configure the maven publication
 publishing {
 	publications {
