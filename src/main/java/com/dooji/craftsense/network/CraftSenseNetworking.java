@@ -2,6 +2,7 @@ package com.dooji.craftsense.network;
 
 import com.dooji.craftsense.mixin.CraftingScreenHandlerAccessor;
 import com.dooji.craftsense.network.payloads.CraftItemPayload;
+import com.dooji.craftsense.network.payloads.RecordCraftPayload;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.entity.player.PlayerInventory;
@@ -23,6 +24,7 @@ import java.util.Optional;
 public class CraftSenseNetworking {
     public static void init() {
         PayloadTypeRegistry.playC2S().register(CraftItemPayload.ID, CraftItemPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(RecordCraftPayload.ID, RecordCraftPayload.CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(CraftItemPayload.ID, (payload, context) -> {
             context.server().execute(() -> handleCraftItemPayload(payload, context.player()));

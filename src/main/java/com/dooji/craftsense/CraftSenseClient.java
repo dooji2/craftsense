@@ -3,6 +3,7 @@ package com.dooji.craftsense;
 import com.dooji.craftsense.manager.CategoryGenerator;
 import com.dooji.craftsense.manager.ConfigurationManager;
 import com.dooji.craftsense.manager.CraftSenseTracker;
+import com.dooji.craftsense.network.CraftSenseClientNetworking;
 import com.dooji.craftsense.ui.CraftSenseStatsScreen;
 import com.dooji.omnilib.OmnilibClient;
 
@@ -22,6 +23,7 @@ public class CraftSenseClient implements ClientModInitializer {
     public void onInitializeClient() {
         CraftSenseKeyBindings.register();
         CategoryGenerator.generateCategories();
+        CraftSenseClientNetworking.init();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player != null && !hasEnteredWorld) {
