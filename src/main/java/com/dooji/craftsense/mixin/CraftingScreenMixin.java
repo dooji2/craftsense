@@ -6,8 +6,11 @@ import com.dooji.craftsense.CraftingPredictor;
 import com.dooji.craftsense.manager.CategoryHabitsTracker;
 import com.dooji.craftsense.manager.CategoryManager;
 import com.dooji.craftsense.network.payloads.CraftItemPayload;
+
 import com.mojang.blaze3d.systems.RenderSystem;
+
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.CraftingScreen;
@@ -19,6 +22,7 @@ import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.RecipeInputInventory;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.recipe.*;
 import net.minecraft.screen.CraftingScreenHandler;
@@ -27,10 +31,13 @@ import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.Pair;
 import net.minecraft.world.World;
+
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Vector2i;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -75,6 +82,8 @@ public abstract class CraftingScreenMixin {
         MinecraftClient client = MinecraftClient.getInstance();
 
         if (!(client.currentScreen instanceof CraftingScreen craftingScreen) || !CraftSense.configManager.isEnabled()) {
+            return;
+        } else if (craftingScreen.getRecipeBookWidget().isOpen()) {
             return;
         }
 
@@ -127,75 +136,10 @@ public abstract class CraftingScreenMixin {
                 ItemStack resultStack = recipe.getOutput(world.getRegistryManager());
                 renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f, mouseX, mouseY, false);
 
-                if (recipe instanceof ShapedRecipe shapedRecipe) {
-                    int recipeWidth = shapedRecipe.getWidth();
-                    int recipeHeight = shapedRecipe.getHeight();
-                    List<Ingredient> ingredients = shapedRecipe.getIngredients();
-
-                    int bestOffsetX = -1;
-                    int bestOffsetY = -1;
-                    int bestScore = -1;
-
-                    for (int offsetX = 0; offsetX <= 3 - recipeWidth; offsetX++) {
-                        for (int offsetY = 0; offsetY <= 3 - recipeHeight; offsetY++) {
-                            int alignmentScore = predictor.matchShapedRecipe(shapedRecipe, input, predictor.getAvailableItems(playerInventory, cursorStack), offsetX, offsetY);
-                            if (alignmentScore > bestScore) {
-                                bestScore = alignmentScore;
-                                bestOffsetX = offsetX;
-                                bestOffsetY = offsetY;
-                            }
-                        }
-                    }
-
-                    if (bestOffsetX != -1 && bestOffsetY != -1) {
-                        for (int recipeY = 0; recipeY < recipeHeight; recipeY++) {
-                            for (int recipeX = 0; recipeX < recipeWidth; recipeX++) {
-                                int index = recipeY * recipeWidth + recipeX;
-                                Ingredient ingredient = ingredients.get(index);
-
-                                int gridX = bestOffsetX + recipeX;
-                                int gridY = bestOffsetY + recipeY;
-
-                                int gridIndex = gridY * 3 + gridX;
-                                Slot slot = handler.slots.get(gridIndex + 1);
-                                int slotX = screenX + slot.x;
-                                int slotY = screenY + slot.y;
-
-                                ItemStack[] matchingStacks = ingredient.getMatchingStacks();
-                                if (matchingStacks.length > 0) {
-                                    ItemStack ghostStack = matchingStacks[0];
-                                    renderGhostItem(context, ghostStack, slotX, slotY, 0.2f, mouseX, mouseY, false);
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    List<Ingredient> ingredients = recipe.getIngredients();
-                    List<Ingredient> ingredientsToPlace = new ArrayList<>(ingredients);
-
-                    for (int i = 0; i < input.size(); i++) {
-                        ItemStack placedItem = input.getStack(i);
-                        if (!placedItem.isEmpty()) {
-                            ingredientsToPlace.removeIf(ingredient -> ingredient.test(placedItem));
-                        }
-                    }
-
-                    int ingredientIndex = 0;
-                    for (int i = 0; i < input.size() && ingredientIndex < ingredientsToPlace.size(); i++) {
-                        ItemStack placedItem = input.getStack(i);
-                        if (placedItem.isEmpty()) {
-                            Ingredient ingredient = ingredientsToPlace.get(ingredientIndex);
-                            ItemStack[] matchingStacks = ingredient.getMatchingStacks();
-                            if (matchingStacks.length > 0) {
-                                ItemStack ghostStack = matchingStacks[0];
-                                Slot slot = handler.slots.get(i + 1);
-                                int slotX = screenX + slot.x;
-                                int slotY = screenY + slot.y;
-                                renderGhostItem(context, ghostStack, slotX, slotY, 0.2f, mouseX, mouseY, false);
-                            }
-                            ingredientIndex++;
-                        }
-                    }
+                if (recipe instanceof ShapedRecipe) {
+                    renderShapedRecipeIngredients(context, recipe, input, handler, screenX, screenY, mouseX, mouseY, playerInventory, cursorStack, world, predictor);
+                } else if (recipe instanceof ShapelessRecipe) {
+                    renderShapelessRecipeIngredients(context, recipe, input, handler, screenX, screenY, mouseX, mouseY);
                 }
             }
         }
@@ -206,7 +150,9 @@ public abstract class CraftingScreenMixin {
         MinecraftClient client = MinecraftClient.getInstance();
         boolean isShiftPressed = InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow().getHandle(), InputUtil.GLFW_KEY_LEFT_SHIFT);
 
-        if (!(client.currentScreen instanceof CraftingScreen) || !CraftSense.configManager.isEnabled()) {
+        if (!(client.currentScreen instanceof CraftingScreen craftingScreen) || !CraftSense.configManager.isEnabled()) {
+            return;
+        } else if (craftingScreen.getRecipeBookWidget().isOpen()) {
             return;
         }
 
@@ -249,7 +195,7 @@ public abstract class CraftingScreenMixin {
                 if (recipeId != null) {
                     ItemStack resultStack = recipe.getOutput(world.getRegistryManager()).copy();
 
-                    if (!cursorStack.isEmpty() && (!cursorStack.isStackable() || !areStacksEqualWithComponents(cursorStack, resultStack))) {
+                    if (!cursorStack.isEmpty() && !isShiftPressed && (!cursorStack.isStackable() || !areStacksEqualWithComponents(cursorStack, resultStack)) || resultStack.getItem() == Items.AIR) {
                         return;
                     }
 
@@ -270,7 +216,9 @@ public abstract class CraftingScreenMixin {
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
-        if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen) || !CraftSense.configManager.isEnabled()) {
+        if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen craftingScreen) || !CraftSense.configManager.isEnabled()) {
+            return;
+        } else if (craftingScreen.getRecipeBookWidget().isOpen()) {
             return;
         }
 
@@ -313,7 +261,13 @@ public abstract class CraftingScreenMixin {
                     Identifier recipeId = findRecipeId(world.getRecipeManager(), r);
                     if (recipeId != null) {
                         ItemStack resultStack = r.getOutput(world.getRegistryManager()).copy();
+
+                        if (resultStack.getItem() == Items.AIR) {
+                            return;
+                        }
+
                         String category = CategoryManager.getCategory(resultStack.getItem());
+
                         CategoryHabitsTracker habitsConfig = CategoryHabitsTracker.getInstance();
                         habitsConfig.recordCraft(category, resultStack.getItem().getTranslationKey());
 
@@ -324,6 +278,128 @@ public abstract class CraftingScreenMixin {
                     }
                 });
                 cir.setReturnValue(true);
+            }
+        }
+    }
+
+    @Unique
+    private void renderShapedRecipeIngredients(DrawContext context, CraftingRecipe recipe, RecipeInputInventory input, CraftingScreenHandler handler, int screenX, int screenY, int mouseX, int mouseY, PlayerInventory playerInventory, ItemStack cursorStack, World world, CraftingPredictor predictor) {
+        ItemStack resultStack = recipe.getOutput(world.getRegistryManager());
+        renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f, mouseX, mouseY, false);
+
+        if (recipe instanceof ShapedRecipe shapedRecipe) {
+            int recipeWidth = shapedRecipe.getWidth();
+            int recipeHeight = shapedRecipe.getHeight();
+            List<Ingredient> ingredients = shapedRecipe.getIngredients();
+
+            int bestOffsetX = -1;
+            int bestOffsetY = -1;
+            boolean bestMirrored = false;
+            int bestScore = -1;
+
+            for (int offsetX = 0; offsetX <= 3 - recipeWidth; offsetX++) {
+                for (int offsetY = 0; offsetY <= 3 - recipeHeight; offsetY++) {
+                    Pair<Integer, Boolean> matchResult = predictor.matchShapedRecipe(shapedRecipe, input, predictor.getAvailableItems(playerInventory, cursorStack), offsetX, offsetY);
+                    int alignmentScore = matchResult.getLeft();
+                    boolean mirrored = matchResult.getRight();
+                    if (alignmentScore > bestScore) {
+                        bestScore = alignmentScore;
+                        bestOffsetX = offsetX;
+                        bestOffsetY = offsetY;
+                        bestMirrored = mirrored;
+                    }
+                }
+            }
+
+            if (bestOffsetX != -1 && bestOffsetY != -1) {
+                for (int recipeY = 0; recipeHeight > recipeY; recipeY++) {
+                    for (int recipeX = 0; recipeWidth > recipeX; recipeX++) {
+                        int index = recipeY * recipeWidth + recipeX;
+                        Ingredient ingredient = ingredients.get(bestMirrored ? (recipeWidth - recipeX - 1) + recipeY * recipeWidth : index);
+
+                        int gridX = bestOffsetX + recipeX;
+                        int gridY = bestOffsetY + recipeY;
+
+                        int gridIndex = gridY * 3 + gridX;
+                        Slot slot = handler.slots.get(gridIndex + 1);
+                        int slotX = screenX + slot.x;
+                        int slotY = screenY + slot.y;
+
+                        ItemStack[] matchingStacks = ingredient.getMatchingStacks();
+                        if (matchingStacks.length > 0) {
+                            ItemStack ghostStack = matchingStacks[0];
+                            renderGhostItem(context, ghostStack, slotX, slotY, 0.2f, mouseX, mouseY, false);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Unique
+    private void renderShapelessRecipeIngredients(DrawContext context, CraftingRecipe recipe, RecipeInputInventory input, CraftingScreenHandler handler, int screenX, int screenY, int mouseX, int mouseY) {
+        List<Ingredient> ingredients = recipe.getIngredients();
+        boolean[][] usedGrid = new boolean[3][3];
+        Map<Integer, Integer> placedItemCounts = new HashMap<>();
+
+        for (int i = 0; i < input.size(); i++) {
+            ItemStack stack = input.getStack(i);
+            if (!stack.isEmpty()) {
+                placedItemCounts.put(i, stack.getCount());
+                int gridX = i % 3;
+                int gridY = i / 3;
+                usedGrid[gridY][gridX] = true;
+            }
+        }
+
+        List<ItemStack> remainingIngredients = new ArrayList<>();
+        for (Ingredient ingredient : ingredients) {
+            boolean matched = false;
+
+            for (Map.Entry<Integer, Integer> entry : placedItemCounts.entrySet()) {
+                int slotIndex = entry.getKey();
+                int count = entry.getValue();
+                ItemStack placedItem = input.getStack(slotIndex);
+
+                if (ingredient.test(placedItem)) {
+                    matched = true;
+
+                    if (count > 1) {
+                        placedItemCounts.put(slotIndex, count - 1);
+                    } else {
+                        placedItemCounts.remove(slotIndex);
+                    }
+                    break;
+                }
+            }
+
+            if (!matched) {
+                remainingIngredients.add(ingredient.getMatchingStacks()[0]);
+            }
+        }
+
+        for (Map.Entry<Integer, Integer> entry : placedItemCounts.entrySet()) {
+            int slotIndex = entry.getKey();
+            Slot slot = handler.slots.get(slotIndex + 1);
+            int slotX = screenX + slot.x;
+            int slotY = screenY + slot.y;
+            renderGhostItem(context, input.getStack(slotIndex), slotX, slotY, 0.2f, mouseX, mouseY, false);
+        }
+
+        int ingredientIndex = 0;
+        for (int gridY = 0; gridY < 3; gridY++) {
+            for (int gridX = 0; gridX < 3; gridX++) {
+                if (usedGrid[gridY][gridX] || ingredientIndex >= remainingIngredients.size()) {
+                    continue;
+                }
+
+                int gridIndex = gridY * 3 + gridX;
+                Slot slot = handler.slots.get(gridIndex + 1);
+                int slotX = screenX + slot.x;
+                int slotY = screenY + slot.y;
+
+                ItemStack ingredientStack = remainingIngredients.get(ingredientIndex++);
+                renderGhostItem(context, ingredientStack, slotX, slotY, 0.2f, mouseX, mouseY, false);
             }
         }
     }
