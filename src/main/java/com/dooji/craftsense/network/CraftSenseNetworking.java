@@ -80,6 +80,7 @@ public class CraftSenseNetworking {
         if (!ItemStack.areItemsEqual(stack1, stack2)) {
             return false;
         }
+        
         return Objects.equals(stack1.getComponents(), stack2.getComponents());
     }
 
@@ -102,6 +103,7 @@ public class CraftSenseNetworking {
                 return false;
             }
         }
+
         return true;
     }
 
@@ -206,7 +208,7 @@ public class CraftSenseNetworking {
 
         for (int i = 0; i < PlayerInventory.MAIN_SIZE; i++) {
             ItemStack slotStack = inventory.getStack(i);
-            
+
             if (slotStack.isEmpty()) {
                 inventory.setStack(i, stack);
                 sendSlotUpdate(player, 0, i, stack);
