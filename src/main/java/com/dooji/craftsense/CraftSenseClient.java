@@ -3,6 +3,7 @@ package com.dooji.craftsense;
 import com.dooji.craftsense.manager.CategoryGenerator;
 import com.dooji.craftsense.manager.ConfigurationManager;
 import com.dooji.craftsense.manager.CraftSenseTracker;
+import com.dooji.craftsense.network.CraftSenseClientNetworking;
 import com.dooji.craftsense.ui.CraftSenseStatsScreen;
 import com.dooji.omnilib.OmnilibClient;
 
@@ -10,6 +11,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -22,6 +24,7 @@ public class CraftSenseClient implements ClientModInitializer {
     public void onInitializeClient() {
         CraftSenseKeyBindings.register();
         CategoryGenerator.generateCategories();
+        CraftSenseClientNetworking.init();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player != null && !hasEnteredWorld) {
@@ -41,8 +44,7 @@ public class CraftSenseClient implements ClientModInitializer {
                 configManager.toggleEnabled();
                 boolean enabled = configManager.isEnabled();
 
-                createToast("CraftSense " + (enabled ? "Enabled" : "Disabled"),
-                        "CraftSense has been " + (enabled ? "enabled" : "disabled"));
+                createToast("CraftSense " + (enabled ? "Enabled" : "Disabled"), "CraftSense has been " + (enabled ? "enabled" : "disabled"));
 
                 client.player.playSound(enabled ? SoundEvents.BLOCK_LEVER_CLICK : SoundEvents.BLOCK_WOODEN_BUTTON_CLICK_OFF, 1.0F, 1.0F);
             }
