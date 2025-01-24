@@ -1,6 +1,7 @@
 package com.dooji.craftsense;
 
 import com.dooji.craftsense.manager.CategoryHabitsTracker;
+import com.dooji.craftsense.manager.CategoryManager;
 import com.dooji.craftsense.manager.CraftSenseTracker;
 
 import net.minecraft.entity.player.PlayerInventory;
@@ -20,8 +21,6 @@ import net.minecraft.util.collection.DefaultedList;
 
 import java.util.*;
 
-import static com.dooji.craftsense.manager.CategoryManager.getCategory;
-
 public class CraftingPredictor {
     private static CraftingPredictor instance;
     private final RecipeManager recipeManager;
@@ -38,14 +37,17 @@ public class CraftingPredictor {
         if (instance == null) {
             instance = new CraftingPredictor(recipeManager);
         }
+
         return instance;
     }
 
     public List<ItemStack> getAvailableItems(PlayerInventory playerInventory, ItemStack cursorStack) {
         List<ItemStack> availableItems = new ArrayList<>(playerInventory.main);
+
         if (!cursorStack.isEmpty()) {
             availableItems.add(cursorStack.copy());
         }
+
         return availableItems;
     }
 
@@ -55,6 +57,7 @@ public class CraftingPredictor {
                 return false;
             }
         }
+
         return true;
     }
 
@@ -63,6 +66,7 @@ public class CraftingPredictor {
         for (ItemStack stack : original) {
             copy.add(stack.copy());
         }
+
         return copy;
     }
 
@@ -73,11 +77,11 @@ public class CraftingPredictor {
                 return true;
             }
         }
+
         return false;
     }
 
     private boolean itemsAndComponentsMatch(ItemStack stack, ItemStack itemToMatch) {
-
         if (!ItemStack.areItemsEqual(stack, itemToMatch)) {
             return false;
         }
@@ -113,8 +117,10 @@ public class CraftingPredictor {
         int highestItemCount = -1;
         for (Map.Entry<String, Integer> entry : habitsConfig.itemCraftCount.entrySet()) {
             String itemName = entry.getKey();
-            if (getCategory(Registries.ITEM.get(Identifier.of(itemName))).equals(bestCategory)) {
+
+            if (CategoryManager.getCategory(Registries.ITEM.get(Identifier.of(itemName))).equals(bestCategory)) {
                 int itemCount = entry.getValue();
+
                 if (itemCount > highestItemCount) {
                     mostCraftedItem = itemName;
                     highestItemCount = itemCount;
@@ -129,7 +135,7 @@ public class CraftingPredictor {
 
         for (RecipeEntry<CraftingRecipe> recipeEntry : filteredRecipeEntries) {
             CraftingRecipe recipe = recipeEntry.value();
-            String category = getCategory(recipe.getResult(world.getRegistryManager()).getItem());
+            String category = CategoryManager.getCategory(recipe.getResult(world.getRegistryManager()).getItem());
             String itemName = recipe.getResult(world.getRegistryManager()).getTranslationKey();
 
             int score = calculateMatchScore(recipe, input, playerInventory, cursorStack);
@@ -154,7 +160,7 @@ public class CraftingPredictor {
             }
         }
 
-        if (bestRecipe != null && getCategory(bestRecipe.getResult(world.getRegistryManager()).getItem()).equals("TOOL")) {
+        if (bestRecipe != null && CategoryManager.getCategory(bestRecipe.getResult(world.getRegistryManager()).getItem()).equals("TOOL")) {
             boolean hasWeapon = playerInventoryContainsWeapon(playerInventory);
 
             if (CraftSenseTracker.isPrioritizingCombatItems() && !hasWeapon) {
@@ -190,6 +196,7 @@ public class CraftingPredictor {
                 return false;
             }
         }
+
         return true;
     }
 
@@ -200,6 +207,7 @@ public class CraftingPredictor {
         for (ItemStack stack : playerInventory.main) {
             availableItems.add(stack.copy());
         }
+
         if (!cursorStack.isEmpty()) {
             availableItems.add(cursorStack.copy());
         }
@@ -243,9 +251,11 @@ public class CraftingPredictor {
         for (ItemStack stack : playerInventory.main) {
             hashBuilder.append(stack.isEmpty() ? "-" : stack.getTranslationKey() + ":" + stack.getCount()).append(",");
         }
+
         if (!cursorStack.isEmpty()) {
             hashBuilder.append(cursorStack.getTranslationKey()).append(":").append(cursorStack.getCount());
         }
+
         return hashBuilder.toString();
     }
 
@@ -366,6 +376,7 @@ public class CraftingPredictor {
                         break;
                     }
                 }
+
                 if (!matched) {
 
                     return -1;
@@ -382,6 +393,7 @@ public class CraftingPredictor {
                     break;
                 }
             }
+
             if (!found) {
                 return -1;
             }
@@ -400,6 +412,7 @@ public class CraftingPredictor {
                 return true;
             }
         }
+
         return false;
     }
 
@@ -414,6 +427,7 @@ public class CraftingPredictor {
                 }
             }
         }
+        
         return Optional.empty();
     }
 

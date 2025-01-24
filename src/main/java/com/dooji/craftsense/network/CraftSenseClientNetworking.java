@@ -1,8 +1,7 @@
 package com.dooji.craftsense.network;
 
-import static com.dooji.craftsense.manager.CategoryManager.getCategory;
-
 import com.dooji.craftsense.manager.CategoryHabitsTracker;
+import com.dooji.craftsense.manager.CategoryManager;
 import com.dooji.craftsense.network.payloads.RecordCraftPayload;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -16,7 +15,7 @@ public class CraftSenseClientNetworking {
 
     private static void recordCraft(RecordCraftPayload payload) {
         CategoryHabitsTracker habitsConfig = CategoryHabitsTracker.getInstance();
-        String category = getCategory(payload.itemStack().getItem());
+        String category = CategoryManager.getCategory(payload.itemStack().getItem());
         habitsConfig.recordCraft(category, payload.itemStack().getItem().getTranslationKey());
     }
 }

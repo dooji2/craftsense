@@ -2,7 +2,9 @@ package com.dooji.craftsense;
 
 import com.dooji.craftsense.manager.ConfigurationManager;
 import com.dooji.craftsense.network.CraftSenseNetworking;
+
 import net.fabricmc.api.ModInitializer;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

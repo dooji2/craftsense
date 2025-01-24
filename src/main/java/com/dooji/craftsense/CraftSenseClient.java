@@ -11,6 +11,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -43,8 +44,7 @@ public class CraftSenseClient implements ClientModInitializer {
                 configManager.toggleEnabled();
                 boolean enabled = configManager.isEnabled();
 
-                createToast("CraftSense " + (enabled ? "Enabled" : "Disabled"),
-                        "CraftSense has been " + (enabled ? "enabled" : "disabled"));
+                createToast("CraftSense " + (enabled ? "Enabled" : "Disabled"), "CraftSense has been " + (enabled ? "enabled" : "disabled"));
 
                 client.player.playSound(enabled ? SoundEvents.BLOCK_LEVER_CLICK : SoundEvents.BLOCK_WOODEN_BUTTON_CLICK_OFF);
             }

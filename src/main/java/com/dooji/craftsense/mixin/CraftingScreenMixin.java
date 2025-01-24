@@ -104,6 +104,7 @@ public abstract class CraftingScreenMixin {
         if (!currentStateHash.equals(lastGridHash)) {
             lastGridHash = currentStateHash;
             cachedLastCraftedRecipe = predictor.suggestLastCraftedItem(input, playerInventory, cursorStack, world);
+            
             if (cachedLastCraftedRecipe.isEmpty()) {
                 cachedSuggestedRecipe = predictor.suggestRecipe(input, playerInventory, cursorStack, world);
             } else {

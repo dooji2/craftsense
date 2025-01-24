@@ -3,8 +3,10 @@ package com.dooji.craftsense.network;
 import com.dooji.craftsense.mixin.CraftingScreenHandlerAccessor;
 import com.dooji.craftsense.network.payloads.CraftItemPayload;
 import com.dooji.craftsense.network.payloads.RecordCraftPayload;
+
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.RecipeInputInventory;
 import net.minecraft.item.ItemStack;
@@ -107,6 +109,7 @@ public class CraftSenseNetworking {
         for (int i = 0; i < inventory.size(); i++) {
             if (ingredient.test(inventory.getStack(i))) return true;
         }
+
         return false;
     }
 
@@ -159,6 +162,7 @@ public class CraftSenseNetworking {
     private static void consumeFromInventory(Ingredient ingredient, PlayerInventory inventory, int requiredAmount) {
         for (int i = 0; i < inventory.size(); i++) {
             ItemStack stack = inventory.getStack(i);
+
             if (ingredient.test(stack) && !stack.isEmpty()) {
                 int toConsume = Math.min(requiredAmount, stack.getCount());
                 stack.decrement(toConsume);
@@ -187,6 +191,7 @@ public class CraftSenseNetworking {
     private static boolean placeInInventoryOrCursor(PlayerInventory inventory, ItemStack stack, ServerPlayerEntity player) {
         for (int i = 0; i < PlayerInventory.MAIN_SIZE; i++) {
             ItemStack slotStack = inventory.getStack(i);
+
             if (ItemStack.areItemsEqual(slotStack, stack) && slotStack.getCount() < slotStack.getMaxCount()) {
                 int transferable = Math.min(stack.getCount(), slotStack.getMaxCount() - slotStack.getCount());
                 slotStack.increment(transferable);
@@ -201,6 +206,7 @@ public class CraftSenseNetworking {
 
         for (int i = 0; i < PlayerInventory.MAIN_SIZE; i++) {
             ItemStack slotStack = inventory.getStack(i);
+            
             if (slotStack.isEmpty()) {
                 inventory.setStack(i, stack);
                 sendSlotUpdate(player, 0, i, stack);
