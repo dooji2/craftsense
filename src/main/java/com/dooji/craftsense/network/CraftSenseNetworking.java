@@ -79,6 +79,7 @@ public class CraftSenseNetworking {
         if (stack1.hasNbt() && stack2.hasNbt()) {
             return Objects.equals(stack1.getNbt(), stack2.getNbt());
         }
+
         return !stack1.hasNbt() && !stack2.hasNbt();
     }
 
@@ -161,6 +162,7 @@ public class CraftSenseNetworking {
     private static void consumeFromInventory(Ingredient ingredient, PlayerInventory inventory, int requiredAmount) {
         for (int i = 0; i < inventory.size(); i++) {
             ItemStack stack = inventory.getStack(i);
+
             if (ingredient.test(stack) && !stack.isEmpty()) {
                 int toConsume = Math.min(requiredAmount, stack.getCount());
                 stack.decrement(toConsume);
@@ -191,6 +193,7 @@ public class CraftSenseNetworking {
     private static boolean placeInInventoryOrCursor(PlayerInventory inventory, ItemStack stack, ServerPlayerEntity player) {
         for (int i = 0; i < PlayerInventory.MAIN_SIZE; i++) {
             ItemStack slotStack = inventory.getStack(i);
+
             if (ItemStack.areItemsEqual(slotStack, stack) && slotStack.getCount() < slotStack.getMaxCount()) {
                 int transferable = Math.min(stack.getCount(), slotStack.getMaxCount() - slotStack.getCount());
                 slotStack.increment(transferable);
