@@ -2,7 +2,9 @@ package com.dooji.craftsense.network;
 
 import com.dooji.craftsense.mixin.CraftingScreenHandlerAccessor;
 import com.dooji.craftsense.network.payloads.CraftItemPayload;
+
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+
 import net.minecraft.recipe.Ingredient;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
@@ -78,6 +80,7 @@ public class CraftSenseNetworking {
         if (stack1.hasNbt() && stack2.hasNbt()) {
             return Objects.equals(stack1.getNbt(), stack2.getNbt());
         }
+
         return !stack1.hasNbt() && !stack2.hasNbt();
     }
 

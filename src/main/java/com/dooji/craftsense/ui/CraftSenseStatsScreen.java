@@ -290,6 +290,7 @@ public class CraftSenseStatsScreen extends Screen {
         } else if (number >= 1_000) {
             return String.format("%.1fK", number / 1_000.0);
         }
+
         return String.valueOf(number);
     }
 
@@ -299,6 +300,7 @@ public class CraftSenseStatsScreen extends Screen {
             this.close();
             return true;
         }
+
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 }
