@@ -8,6 +8,7 @@ import net.minecraft.inventory.CraftingInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.recipe.*;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.Pair;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.world.World;
 import net.minecraft.util.collection.DefaultedList;
@@ -35,11 +36,20 @@ public class CraftingPredictor {
         return instance;
     }
 
-    public List<ItemStack> getAvailableItems(PlayerInventory playerInventory, ItemStack cursorStack) {
+    public List<ItemStack> getAvailableItems(PlayerInventory playerInventory, ItemStack cursorStack, CraftingInventory craftingGrid) {
         List<ItemStack> availableItems = new ArrayList<>(playerInventory.main);
+
         if (!cursorStack.isEmpty()) {
             availableItems.add(cursorStack.copy());
         }
+
+        for (int i = 0; i < craftingGrid.size(); i++) {
+            ItemStack stack = craftingGrid.getStack(i);
+            if (!stack.isEmpty()) {
+                availableItems.add(stack.copy());
+            }
+        }
+
         return availableItems;
     }
 
@@ -120,7 +130,7 @@ public class CraftingPredictor {
             }
         }
 
-        List<ItemStack> availableItems = getAvailableItems(playerInventory, cursorStack);
+        List<ItemStack> availableItems = getAvailableItems(playerInventory, cursorStack, input);
         List<CraftingRecipe> filteredRecipes = recipes.stream()
                 .filter(recipe -> hasRequiredIngredients(recipe, availableItems))
                 .toList();
@@ -211,7 +221,8 @@ public class CraftingPredictor {
 
             for (int offsetX = 0; offsetX <= maxOffsetX; offsetX++) {
                 for (int offsetY = 0; offsetY <= maxOffsetY; offsetY++) {
-                    int alignmentScore = matchShapedRecipe(shapedRecipe, input, availableItems, offsetX, offsetY);
+                    Pair<Integer, Boolean> matchResult = matchShapedRecipe(shapedRecipe, input, getAvailableItems(playerInventory, cursorStack, input), offsetX, offsetY);
+                    int alignmentScore = matchResult.getLeft();
                     if (alignmentScore > score) {
                         score = alignmentScore;
                         if (score == Integer.MAX_VALUE) {
@@ -246,97 +257,99 @@ public class CraftingPredictor {
         return hashBuilder.toString();
     }
 
-    public int matchShapedRecipe(ShapedRecipe recipe, CraftingInventory input, List<ItemStack> availableItems, int offsetX, int offsetY) {
-        int score = 0;
-        List<ItemStack> tempAvailableItems = copyItemStacks(availableItems);
+    public Pair<Integer, Boolean> matchShapedRecipe(ShapedRecipe recipe, CraftingInventory input, List<ItemStack> availableItems, int offsetX, int offsetY) {
+        int bestScore = -1;
+        boolean bestMirrored = false;
 
-        int recipeWidth = recipe.getWidth();
-        int recipeHeight = recipe.getHeight();
-        DefaultedList<Ingredient> ingredients = recipe.getIngredients();
+        for (boolean mirrored : new boolean[]{false, true}) {
+            int score = 0;
+            List<ItemStack> tempAvailableItems = copyItemStacks(availableItems);
 
-        boolean mismatch = false;
+            int recipeWidth = recipe.getWidth();
+            int recipeHeight = recipe.getHeight();
+            DefaultedList<Ingredient> ingredients = recipe.getIngredients();
 
-        for (int gridY = 0; gridY < 3; gridY++) {
-            for (int gridX = 0; gridX < 3; gridX++) {
-                int gridIndex = gridY * 3 + gridX;
-                ItemStack placedItem = input.getStack(gridIndex);
+            boolean mismatch = false;
 
-                boolean isWithinRecipe = gridX >= offsetX && gridX < offsetX + recipeWidth
-                        && gridY >= offsetY && gridY < offsetY + recipeHeight;
+            for (int gridY = 0; gridY < 3; gridY++) {
+                for (int gridX = 0; gridX < 3; gridX++) {
+                    int gridIndex = gridY * 3 + gridX;
+                    ItemStack placedItem = input.getStack(gridIndex);
 
-                if (!isWithinRecipe && !placedItem.isEmpty()) {
-                    mismatch = true;
-                    break;
+                    boolean isWithinRecipe = gridX >= offsetX && gridX < offsetX + recipeWidth && gridY >= offsetY && gridY < offsetY + recipeHeight;
+
+                    if (!isWithinRecipe && !placedItem.isEmpty()) {
+                        mismatch = true;
+                        break;
+                    }
                 }
+
+                if (mismatch) break;
             }
-            if (mismatch) {
-                break;
-            }
-        }
 
-        if (mismatch) {
-            return -1;
-        }
+            if (mismatch) continue;
 
-        for (int recipeY = 0; recipeY < recipeHeight; recipeY++) {
-            for (int recipeX = 0; recipeX < recipeWidth; recipeX++) {
-                int index = recipeY * recipeWidth + recipeX;
-                Ingredient ingredient = ingredients.get(index);
+            for (int recipeY = 0; recipeY < recipeHeight; recipeY++) {
+                for (int recipeX = 0; recipeX < recipeWidth; recipeX++) {
+                    int index = recipeY * recipeWidth + recipeX;
+                    Ingredient ingredient = ingredients.get(mirrored ? (recipeWidth - recipeX - 1) + recipeY * recipeWidth : index);
 
-                int gridX = offsetX + recipeX;
-                int gridY = offsetY + recipeY;
+                    int gridX = offsetX + recipeX;
+                    int gridY = offsetY + recipeY;
 
-                int gridIndex = gridY * 3 + gridX;
-                ItemStack placedItem = input.getStack(gridIndex);
+                    int gridIndex = gridY * 3 + gridX;
+                    ItemStack placedItem = input.getStack(gridIndex);
 
-                if (ingredient.isEmpty()) {
+                    if (ingredient.isEmpty()) {
+                        if (!placedItem.isEmpty()) {
+                            mismatch = true;
+                            break;
+                        }
+                        continue;
+                    }
+
                     if (!placedItem.isEmpty()) {
-                        mismatch = true;
-                        break;
-                    }
-
-                    continue;
-                }
-
-                if (!placedItem.isEmpty()) {
-                    if (ingredient.test(placedItem)) {
-                        score += 2;
-                        decrementAvailableItemCount(tempAvailableItems, placedItem);
+                        if (ingredient.test(placedItem)) {
+                            score += 2;
+                            decrementAvailableItemCount(tempAvailableItems, placedItem);
+                        } else {
+                            mismatch = true;
+                            break;
+                        }
                     } else {
-                        mismatch = true;
-                        break;
-                    }
-                } else {
+                        boolean found = false;
+                        for (ItemStack matchingStack : ingredient.getMatchingStacks()) {
+                            if (decrementAvailableItemCount(tempAvailableItems, matchingStack)) {
+                                score += 1;
+                                found = true;
+                                break;
+                            }
+                        }
 
-                    boolean found = false;
-                    for (ItemStack matchingStack : ingredient.getMatchingStacks()) {
-                        if (decrementAvailableItemCount(tempAvailableItems, matchingStack)) {
-                            score += 1;
-                            found = true;
+                        if (!found) {
+                            mismatch = true;
                             break;
                         }
                     }
-                    if (!found) {
-                        mismatch = true;
-                        break;
-                    }
+                }
+
+                if (mismatch) break;
+            }
+
+            if (!mismatch) {
+                long nonEmptyIngredientCount = ingredients.stream().filter(ingredient -> !ingredient.isEmpty()).count();
+                if (score == nonEmptyIngredientCount * 2) {
+                    return new Pair<>(Integer.MAX_VALUE, mirrored);
+                }
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMirrored = mirrored;
                 }
             }
-            if (mismatch) {
-                break;
-            }
         }
 
-        if (mismatch) {
-            return -1;
-        } else {
-
-            long nonEmptyIngredientCount = ingredients.stream().filter(ingredient -> !ingredient.isEmpty()).count();
-            if (score == nonEmptyIngredientCount * 2) {
-                return Integer.MAX_VALUE;
-            }
-            return score;
-        }
+        return new Pair<>(bestScore, bestMirrored);
     }
 
     private int matchShapelessRecipe(CraftingRecipe recipe, CraftingInventory input, List<ItemStack> availableItems) {
