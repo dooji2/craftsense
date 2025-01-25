@@ -281,52 +281,52 @@ public abstract class CraftingScreenMixin {
 
     @Unique
     private void renderShapedRecipeIngredients(DrawContext context, CraftingRecipe recipe, RecipeInputInventory input, CraftingScreenHandler handler, int screenX, int screenY, int mouseX, int mouseY, PlayerInventory playerInventory, ItemStack cursorStack, CraftingPredictor predictor) {
-        if (recipe instanceof ShapedRecipe shapedRecipe) {
-            int recipeWidth = shapedRecipe.getWidth();
-            int recipeHeight = shapedRecipe.getHeight();
-            List<Optional<Ingredient>> ingredients = shapedRecipe.getIngredients();
+        ShapedRecipe shapedRecipe = (ShapedRecipe) recipe;
+        
+        int recipeWidth = shapedRecipe.getWidth();
+        int recipeHeight = shapedRecipe.getHeight();
+        List<Optional<Ingredient>> ingredients = shapedRecipe.getIngredients();
 
-            int bestOffsetX = -1;
-            int bestOffsetY = -1;
-            boolean bestMirrored = false;
-            int bestScore = -1;
+        int bestOffsetX = -1;
+        int bestOffsetY = -1;
+        boolean bestMirrored = false;
+        int bestScore = -1;
 
-            for (int offsetX = 0; offsetX <= 3 - recipeWidth; offsetX++) {
-                for (int offsetY = 0; offsetY <= 3 - recipeHeight; offsetY++) {
-                    Pair<Integer, Boolean> matchResult = predictor.matchShapedRecipe(shapedRecipe, input, predictor.getAvailableItems(playerInventory, cursorStack, input), offsetX, offsetY);
-                    int alignmentScore = matchResult.getLeft();
-                    boolean mirrored = matchResult.getRight();
-                    if (alignmentScore > bestScore) {
-                        bestScore = alignmentScore;
-                        bestOffsetX = offsetX;
-                        bestOffsetY = offsetY;
-                        bestMirrored = mirrored;
-                    }
+        for (int offsetX = 0; offsetX <= 3 - recipeWidth; offsetX++) {
+            for (int offsetY = 0; offsetY <= 3 - recipeHeight; offsetY++) {
+                Pair<Integer, Boolean> matchResult = predictor.matchShapedRecipe(shapedRecipe, input, predictor.getAvailableItems(playerInventory, cursorStack, input), offsetX, offsetY);
+                int alignmentScore = matchResult.getLeft();
+                boolean mirrored = matchResult.getRight();
+                if (alignmentScore > bestScore) {
+                    bestScore = alignmentScore;
+                    bestOffsetX = offsetX;
+                    bestOffsetY = offsetY;
+                    bestMirrored = mirrored;
                 }
             }
+        }
 
-            if (bestOffsetX != -1 && bestOffsetY != -1) {
-                for (int recipeY = 0; recipeY < recipeHeight; recipeY++) {
-                    for (int recipeX = 0; recipeX < recipeWidth; recipeX++) {
-                        int index = recipeY * recipeWidth + recipeX;
-                        Optional<Ingredient> optionalIngredient = ingredients.get(bestMirrored ? (recipeWidth - recipeX - 1) + recipeY * recipeWidth : index);
+        if (bestOffsetX != -1 && bestOffsetY != -1) {
+            for (int recipeY = 0; recipeY < recipeHeight; recipeY++) {
+                for (int recipeX = 0; recipeX < recipeWidth; recipeX++) {
+                    int index = recipeY * recipeWidth + recipeX;
+                    Optional<Ingredient> optionalIngredient = ingredients.get(bestMirrored ? (recipeWidth - recipeX - 1) + recipeY * recipeWidth : index);
 
-                        if (optionalIngredient.isPresent()) {
-                            Ingredient ingredient = optionalIngredient.get();
-                            List<RegistryEntry<Item>> matchingItems = ingredient.getMatchingItems();
+                    if (optionalIngredient.isPresent()) {
+                        Ingredient ingredient = optionalIngredient.get();
+                        List<RegistryEntry<Item>> matchingItems = ingredient.getMatchingItems();
 
-                            if (!matchingItems.isEmpty()) {
-                                ItemStack ghostStack = new ItemStack(matchingItems.get(0).value());
-                                int gridX = bestOffsetX + recipeX;
-                                int gridY = bestOffsetY + recipeY;
-                                int gridIndex = gridY * 3 + gridX;
+                        if (!matchingItems.isEmpty()) {
+                            ItemStack ghostStack = new ItemStack(matchingItems.get(0).value());
+                            int gridX = bestOffsetX + recipeX;
+                            int gridY = bestOffsetY + recipeY;
+                            int gridIndex = gridY * 3 + gridX;
 
-                                Slot slot = handler.slots.get(gridIndex + 1);
-                                int slotX = screenX + slot.x;
-                                int slotY = screenY + slot.y;
+                            Slot slot = handler.slots.get(gridIndex + 1);
+                            int slotX = screenX + slot.x;
+                            int slotY = screenY + slot.y;
 
-                                renderGhostItem(context, ghostStack, slotX, slotY, 0.2f, mouseX, mouseY, false);
-                            }
+                            renderGhostItem(context, ghostStack, slotX, slotY, 0.2f, mouseX, mouseY, false);
                         }
                     }
                 }
