@@ -123,7 +123,7 @@ public abstract class CraftingScreenMixin {
             }
 
             CraftingRecipe recipe = cachedLastCraftedRecipe.get();
-            if (predictor.hasRequiredIngredients(recipe, predictor.getAvailableItems(playerInventory, cursorStack))) {
+            if (predictor.hasRequiredIngredients(recipe, predictor.getAvailableItems(playerInventory, cursorStack, input))) {
                 ItemStack resultStack = recipe.getResult(world.getRegistryManager());
                 renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f, mouseX, mouseY, true);
                 return;
@@ -136,7 +136,7 @@ public abstract class CraftingScreenMixin {
             }
             
             CraftingRecipe recipe = cachedSuggestedRecipe.get();
-            if (predictor.hasRequiredIngredients(recipe, predictor.getAvailableItems(playerInventory, cursorStack))) {
+            if (predictor.hasRequiredIngredients(recipe, predictor.getAvailableItems(playerInventory, cursorStack, input))) {
                 ItemStack resultStack = recipe.getResult(world.getRegistryManager());
                 renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f, mouseX, mouseY, false);
 
@@ -294,7 +294,7 @@ public abstract class CraftingScreenMixin {
 
             for (int offsetX = 0; offsetX <= 3 - recipeWidth; offsetX++) {
                 for (int offsetY = 0; offsetY <= 3 - recipeHeight; offsetY++) {
-                    Pair<Integer, Boolean> matchResult = predictor.matchShapedRecipe(shapedRecipe, input, predictor.getAvailableItems(playerInventory, cursorStack), offsetX, offsetY);
+                    Pair<Integer, Boolean> matchResult = predictor.matchShapedRecipe(shapedRecipe, input, predictor.getAvailableItems(playerInventory, cursorStack, input), offsetX, offsetY);
                     int alignmentScore = matchResult.getLeft();
                     boolean mirrored = matchResult.getRight();
                     if (alignmentScore > bestScore) {

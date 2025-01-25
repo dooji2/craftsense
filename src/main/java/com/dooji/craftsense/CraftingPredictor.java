@@ -41,11 +41,18 @@ public class CraftingPredictor {
         return instance;
     }
 
-    public List<ItemStack> getAvailableItems(PlayerInventory playerInventory, ItemStack cursorStack) {
+    public List<ItemStack> getAvailableItems(PlayerInventory playerInventory, ItemStack cursorStack, RecipeInputInventory craftingGrid) {
         List<ItemStack> availableItems = new ArrayList<>(playerInventory.main);
 
         if (!cursorStack.isEmpty()) {
             availableItems.add(cursorStack.copy());
+        }
+
+        for (int i = 0; i < craftingGrid.size(); i++) {
+            ItemStack stack = craftingGrid.getStack(i);
+            if (!stack.isEmpty()) {
+                availableItems.add(stack.copy());
+            }
         }
 
         return availableItems;
@@ -128,7 +135,7 @@ public class CraftingPredictor {
             }
         }
 
-        List<ItemStack> availableItems = getAvailableItems(playerInventory, cursorStack);
+        List<ItemStack> availableItems = getAvailableItems(playerInventory, cursorStack, input);
         List<RecipeEntry<CraftingRecipe>> filteredRecipeEntries = recipes.stream()
                 .filter(recipeEntry -> hasRequiredIngredients(recipeEntry.value(), availableItems))
                 .toList();
@@ -221,7 +228,7 @@ public class CraftingPredictor {
 
             for (int offsetX = 0; offsetX <= maxOffsetX; offsetX++) {
                 for (int offsetY = 0; offsetY <= maxOffsetY; offsetY++) {
-                    Pair<Integer, Boolean> matchResult = matchShapedRecipe(shapedRecipe, input, getAvailableItems(playerInventory, cursorStack), offsetX, offsetY);
+                    Pair<Integer, Boolean> matchResult = matchShapedRecipe(shapedRecipe, input, getAvailableItems(playerInventory, cursorStack, input), offsetX, offsetY);
                     int alignmentScore = matchResult.getLeft();
                     if (alignmentScore > score) {
                         score = alignmentScore;
