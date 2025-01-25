@@ -13,7 +13,6 @@ import java.util.Map;
 
 @Mixin(ServerRecipeManager.class)
 public interface RecipeManagerAccessor {
-    
     @Accessor("recipesByKey")
     Map<RegistryKey<Recipe<?>>, List<ServerRecipe>> getRecipesByKey();
 }

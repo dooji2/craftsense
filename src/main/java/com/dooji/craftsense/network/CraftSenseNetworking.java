@@ -7,6 +7,7 @@ import com.dooji.craftsense.mixin.ShapelessRecipeAccessor;
 import com.dooji.craftsense.network.payloads.RecipesPayload;
 import com.dooji.craftsense.network.payloads.CraftItemPayload;
 import com.dooji.craftsense.network.payloads.RecipesRequestPayload;
+import com.dooji.craftsense.network.payloads.RecordCraftPayload;
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -32,6 +33,7 @@ public class CraftSenseNetworking {
         PayloadTypeRegistry.playC2S().register(CraftItemPayload.ID, CraftItemPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(RecipesRequestPayload.ID, RecipesRequestPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(RecipesPayload.ID, RecipesPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(RecordCraftPayload.ID, RecordCraftPayload.CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(CraftItemPayload.ID, (payload, context) -> {
             context.server().execute(() -> {
@@ -131,6 +133,7 @@ public class CraftSenseNetworking {
             if (!found && ingredient.test(cursorStack)) {
                 found = true;
             }
+
             if (!found && !findInInventory(inventory, ingredient)) {
                 return false;
             }
@@ -218,7 +221,7 @@ public class CraftSenseNetworking {
 
     private static void clearGridAndSync(CraftingScreenHandler handler, ServerPlayerEntity player) {
         RecipeInputInventory gridInventory = ((CraftingScreenHandlerAccessor) handler).getCraftingInventory();
-
+        
         for (int i = 0; i < gridInventory.size(); i++) {
             ItemStack currentStack = gridInventory.getStack(i);
             player.networkHandler.sendPacket(new ScreenHandlerSlotUpdateS2CPacket(handler.syncId, i + 1, 0, currentStack));
