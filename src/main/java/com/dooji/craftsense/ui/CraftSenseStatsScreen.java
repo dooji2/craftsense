@@ -532,7 +532,7 @@ public class CraftSenseStatsScreen extends Screen {
                     .findFirst()
                     .ifPresent(it -> {
                         stacks.add(it.getDefaultStack());
-                        lines.add(Text.literal(it.getName().getString() + " - " + itE.getValue()));
+                        lines.add(Text.literal(it.getName().getString() + " - " + formatNumberShorthand(itE.getValue())));
                     });
         }
 
@@ -551,6 +551,18 @@ public class CraftSenseStatsScreen extends Screen {
                 mouseX + 10,
                 mouseY + 10
         );
+    }
+
+    private String formatNumberShorthand(int number) {
+        if (number >= 1_000_000_000) {
+            return String.format("%.1fB", number / 1_000_000_000.0);
+        } else if (number >= 1_000_000) {
+            return String.format("%.1fM", number / 1_000_000.0);
+        } else if (number >= 1_000) {
+            return String.format("%.1fK", number / 1_000.0);
+        }
+
+        return String.valueOf(number);
     }
 
     @Override
