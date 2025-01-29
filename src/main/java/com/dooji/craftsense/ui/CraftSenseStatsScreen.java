@@ -3,285 +3,566 @@ package com.dooji.craftsense.ui;
 import com.dooji.craftsense.manager.CategoryHabitsTracker;
 import com.dooji.craftsense.manager.CategoryManager;
 import com.dooji.omnilib.OmnilibClient;
+import com.dooji.omnilib.ui.OmniButton;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.texture.NativeImageBackedTexture;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
-import net.minecraft.util.math.ColorHelper.Argb;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.RotationAxis;
 
+import org.joml.Matrix4f;
+import org.joml.Vector4f;
+
+import java.awt.*;
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.List;
 
 public class CraftSenseStatsScreen extends Screen {
     private final CategoryHabitsTracker tracker = CategoryHabitsTracker.getInstance();
-    private final Map<String, Integer> categoryTotals;
-    private final Map<String, List<Map.Entry<String, Integer>>> categoryItemsMap;
-    private final List<Integer> barColors;
-    private static final int BASE_GRAPH_HEIGHT = 150;
-    private static final int BASE_GRAPH_WIDTH = 300;
-    private static final int BAR_WIDTH = 30;
-    private int categoriesPerPage;
-    private int graphHeight;
-    private int graphWidth;
-    private int currentPage = 0;
-    private int maxPages;
-    private ButtonWidget prevButton;
-    private ButtonWidget nextButton;
-    private Text pageIndicator;
+
+    private Map<String, Integer> categoryTotals;
+    private Map<String, List<Map.Entry<String, Integer>>> categoryItemsMap;
+    private final Set<String> hiddenCategories = new HashSet<>();
+    private List<String> visibleCategories;
+    private final Map<String, Integer> categoryColors = new HashMap<>();
+
+    private NativeImage pieImage;
+    private NativeImageBackedTexture pieTexture;
+    private Identifier pieTextureId;
+    private int pieTextureWidth, pieTextureHeight;
+    private boolean pieNeedsUpdate = true;
+
+    private OmniButton legendPrevBtn, legendNextBtn, closeButton;
+    private int legendPage = 0;
+    private int legendPages = 1;
 
     public CraftSenseStatsScreen() {
         super(Text.translatable("screen.craftsense.stats"));
-        categoryTotals = tracker.categoryCraftCount.entrySet()
+
+        categoryTotals = new LinkedHashMap<>();
+        tracker.categoryCraftCount.entrySet()
                 .stream()
-                .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        Map.Entry::getValue,
-                        (e1, e2) -> e1,
-                        LinkedHashMap::new
-                ));
+                .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                .forEachOrdered(entry -> categoryTotals.put(entry.getKey(), entry.getValue()));
         categoryItemsMap = createCategoryItemsMap();
-        barColors = generateColorPalette(50);
-        setCategoriesPerPageAndGraphSize();
-        maxPages = (int) Math.ceil((double) categoryTotals.size() / categoriesPerPage);
-    }
-
-    private List<Integer> generateColorPalette(int count) {
-        List<Integer> colors = new ArrayList<>();
-        Random random = new Random();
-
-        for (int i = 0; i < count; i++) {
-            float hue = random.nextFloat();
-            float saturation = 0.7f + (random.nextFloat() * 0.3f);
-            float brightness = 0.7f + (random.nextFloat() * 0.3f);
-
-            int color = java.awt.Color.HSBtoRGB(hue, saturation, brightness);
-            colors.add(color);
-        }
-
-        return colors;
-    }
-
-    private void setCategoriesPerPageAndGraphSize() {
-        int guiScale = MinecraftClient.getInstance().options.getGuiScale().getValue();
-
-        switch (guiScale) {
-            case 4, 0:
-                categoriesPerPage = 8;
-                graphHeight = BASE_GRAPH_HEIGHT * 3 / 4 - (BASE_GRAPH_HEIGHT * 3 / 4) / 4;
-                break;
-            case 3:
-                categoriesPerPage = 10;
-                graphHeight = BASE_GRAPH_HEIGHT;
-                break;
-            case 2:
-                categoriesPerPage = 14;
-                graphHeight = BASE_GRAPH_HEIGHT * 5 / 4;
-                break;
-            case 1:
-                categoriesPerPage = 20;
-                graphHeight = BASE_GRAPH_HEIGHT * 3 / 2;
-                break;
-            default:
-                categoriesPerPage = 8;
-                graphHeight = BASE_GRAPH_HEIGHT;
-                break;
-        }
-
-        graphWidth = BASE_GRAPH_WIDTH * guiScale / 4;
-        if (graphHeight < 100) graphHeight = 100;
-        if (graphWidth < 200) graphWidth = 200;
     }
 
     private Map<String, List<Map.Entry<String, Integer>>> createCategoryItemsMap() {
         Map<String, List<Map.Entry<String, Integer>>> categoryMap = new HashMap<>();
-        tracker.categoryCraftCount.keySet().forEach(category -> {
-            List<Map.Entry<String, Integer>> items = tracker.itemCraftCount.entrySet().stream()
-                    .filter(entry -> {
-                        String translationKey = entry.getKey();
-                        return Registries.ITEM.stream()
-                                .filter(item -> item.getTranslationKey().equals(translationKey))
-                                .findFirst()
-                                .map(item -> category.equals(CategoryManager.getCategory(item)))
-                                .orElse(false);
-                    })
-                    .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
-                    .collect(Collectors.toList());
+
+        for (String category : tracker.categoryCraftCount.keySet()) {
+            List<Map.Entry<String, Integer>> items = new ArrayList<>();
+
+            for (Map.Entry<String, Integer> entry : tracker.itemCraftCount.entrySet()) {
+                String translationKey = entry.getKey();
+                Optional<Item> optionalItem = Registries.ITEM.stream()
+                        .filter(item -> item.getTranslationKey().equals(translationKey))
+                        .findFirst();
+
+                if (optionalItem.isPresent() && category.equals(CategoryManager.getCategory(optionalItem.get()))) {
+                    items.add(entry);
+                }
+            }
+
+            items.sort((e1, e2) -> Integer.compare(e2.getValue(), e1.getValue()));
             categoryMap.put(category, items);
-        });
+        }
+
         return categoryMap;
     }
 
     @Override
     protected void init() {
-        int paginationButtonY = 50;
+        recalculateStats();
 
-        prevButton = ButtonWidget.builder(
-                        Text.translatable("screen.craftsense.stats.previous"),
-                        button -> {
-                            if (currentPage > 0) {
-                                currentPage--;
-                                updateButtonStates();
-                            }
-                        }
-                ).dimensions(this.width / 2 - 150, paginationButtonY, 80, 20)
-                .build();
-        this.addDrawableChild(prevButton);
-
-        pageIndicator = Text.translatable("screen.craftsense.stats.page", currentPage + 1, maxPages);
-
-        nextButton = ButtonWidget.builder(
-                        Text.translatable("screen.craftsense.stats.next"),
-                        button -> {
-                            if (currentPage < maxPages - 1) {
-                                currentPage++;
-                                updateButtonStates();
-                            }
-                        }
-                ).dimensions(this.width / 2 + 70, paginationButtonY, 80, 20)
-                .build();
-        this.addDrawableChild(nextButton);
-
-        ButtonWidget closeButton = ButtonWidget.builder(
-                        Text.translatable("screen.craftsense.stats.done"),
-                        button -> this.close()
-                ).dimensions(this.width / 2 - 50, this.height - 30, 100, 20)
-                .build();
+        closeButton = OmnilibClient.createOmniButton(
+                this.width / 2 - 40,
+                this.height - 40,
+                80,
+                20,
+                Text.translatable("screen.craftsense.stats.done"),
+                0x99000000, 0xBB000000, 0xFFFFFFFF, 0xFFEFEFEF,
+                this::close
+        );
         this.addDrawableChild(closeButton);
 
-        updateButtonStates();
+        if (!categoryTotals.isEmpty()) {
+            legendPrevBtn = OmnilibClient.createOmniButton(
+                    0,
+                    0,
+                    20,
+                    20,
+                    Text.literal("<"),
+                    0x99000000,
+                    0xBB000000,
+                    0xFFFFFFFF,
+                    0xFFEFEFEF,
+                    () -> {
+                        if (legendPage > 0) legendPage--;
+                    }
+            );
+            this.addDrawableChild(legendPrevBtn);
+
+            legendNextBtn = OmnilibClient.createOmniButton(
+                    0,
+                    0,
+                    20,
+                    20,
+                    Text.literal(">"),
+                    0x99000000,
+                    0xBB000000,
+                    0xFFFFFFFF,
+                    0xFFEFEFEF,
+                    () -> {
+                        if (legendPage < legendPages - 1) legendPage++;
+                    }
+            );
+            this.addDrawableChild(legendNextBtn);
+        }
     }
 
-    private void updateButtonStates() {
-        prevButton.active = currentPage > 0;
-        nextButton.active = currentPage < maxPages - 1;
+    private void recalculateStats() {
+        categoryTotals = new LinkedHashMap<>();
+        tracker.categoryCraftCount.entrySet()
+                .stream()
+                .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                .forEachOrdered(entry -> categoryTotals.put(entry.getKey(), entry.getValue()));
+        categoryItemsMap = new HashMap<>();
 
-        int displayMaxPages = (maxPages == 0) ? 1 : maxPages;
-        pageIndicator = Text.translatable("screen.craftsense.stats.page", currentPage + 1, displayMaxPages);
+        for (String category : tracker.categoryCraftCount.keySet()) {
+            List<Map.Entry<String, Integer>> items = new ArrayList<>();
+
+            for (Map.Entry<String, Integer> entry : tracker.itemCraftCount.entrySet()) {
+                String translationKey = entry.getKey();
+                Optional<Item> optionalItem = Registries.ITEM.stream()
+                        .filter(item -> item.getTranslationKey().equals(translationKey))
+                        .findFirst();
+
+                if (optionalItem.isPresent() && category.equals(CategoryManager.getCategory(optionalItem.get()))) {
+                    items.add(entry);
+                }
+            }
+
+            items.sort((e1, e2) -> Integer.compare(e2.getValue(), e1.getValue()));
+
+            categoryItemsMap.put(category, items);
+        }
+
+        visibleCategories = new ArrayList<>(categoryTotals.keySet());
+
+        for (String category : categoryTotals.keySet()) {
+            if (!categoryColors.containsKey(category)) {
+                categoryColors.put(category, generateColorFromString(category));
+            }
+        }
+
+        int catsPerPage = 8;
+        legendPages = (int) Math.ceil(visibleCategories.size() / (double) catsPerPage);
+
+        if (legendPage >= legendPages && legendPages > 0) legendPage = legendPages - 1;
+        pieNeedsUpdate = true;
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.renderBackground(context);
         super.render(context, mouseX, mouseY, delta);
+        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 15, 0xFFFFFF);
 
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 20, 0xFFFFFF);
+        if (pieNeedsUpdate) {
+            generatePieTexture();
+            pieNeedsUpdate = false;
+        }
 
-        int paginationY = 55;
-        context.drawCenteredTextWithShadow(this.textRenderer, pageIndicator, this.width / 2, paginationY, 0xFFFFFF);
+        int titleBottom = 30;
+        int doneButtonTop = this.height - 40;
+        int areaHeight = doneButtonTop - titleBottom;
 
-        int graphTop = paginationY + 20;
-        int graphBottom = this.height - 45;
-        int graphCenterY = (graphTop + graphBottom) / 2 - (graphHeight / 2);
-        renderGraph(context, mouseX, mouseY, graphCenterY);
+        int areaCenterY = titleBottom + areaHeight / 2;
+
+        renderPieChart(context, mouseX, mouseY, areaCenterY);
+        renderLegend(context, areaCenterY);
+
+        if (categoryTotals.isEmpty()) {
+            context.drawCenteredTextWithShadow(this.textRenderer, Text.translatable("screen.craftsense.no_history"), this.width / 2, areaCenterY, 0xAAAAAA);
+        }
     }
 
-    private void renderGraph(DrawContext context, int mouseX, int mouseY, int graphY) {
-        int maxVisibleCategories = Math.min(categoriesPerPage, categoryTotals.size());
-        int totalGraphWidth = maxVisibleCategories * (BAR_WIDTH + 5) - 5;
-        int graphX = (this.width - totalGraphWidth) / 2;
-        int maxValue = categoryTotals.values().stream().max(Integer::compare).orElse(1);
-        int colorIndex = 0;
-        int xOffset = graphX;
-        int legendYOffset = graphY + graphHeight + 10;
+    private void renderPieChart(DrawContext context, int mouseX, int mouseY, int areaCenterY) {
+        if (pieTexture == null) return;
 
-        String tooltipCategory = null;
-        List<ItemStack> tooltipItemStacks = new ArrayList<>();
-        List<Text> tooltipItemTexts = new ArrayList<>();
-        boolean showTooltip = false;
+        int drawY = areaCenterY - pieTextureHeight / 2;
+        int totalWidth = pieTextureWidth + 100;
+        int cx = (this.width - totalWidth) / 2;
+        context.drawTexture(pieTextureId, cx, drawY, 0, 0, pieTextureWidth, pieTextureHeight, pieTextureWidth, pieTextureHeight);
 
-        List<Map.Entry<String, Integer>> categoriesOnPage = new ArrayList<>(categoryTotals.entrySet())
-                .subList(currentPage * categoriesPerPage, Math.min((currentPage + 1) * categoriesPerPage, categoryTotals.size()));
+        int radius = Math.min(100, (pieTextureHeight - 40) / 2);
+        int centerX = cx + (radius + 20);
+        int centerY = drawY + (radius + 20);
+        handlePieHover(context, mouseX, mouseY, centerX, centerY, radius);
+    }
 
-        for (Map.Entry<String, Integer> entry : categoriesOnPage) {
-            String category = entry.getKey();
-            int count = entry.getValue();
-            int barHeight = (int) ((double) count / maxValue * graphHeight);
-            int barColor = barColors.get(colorIndex % barColors.size());
+    private void renderLegend(DrawContext context, int areaCenterY) {
+        if (categoryTotals.isEmpty()) {
+            return;
+        }
 
-            context.fillGradient(xOffset, graphY + (graphHeight - barHeight), xOffset + BAR_WIDTH, graphY + graphHeight, barColor, barColor);
+        int catsPerPage = 8;
 
-            int maxTextWidth = BAR_WIDTH + 2;
-            String displayText = category;
-            if (textRenderer.getWidth(category) > maxTextWidth) {
-                displayText = trimTextToFit(category, maxTextWidth, textRenderer);
+        int startIndex = legendPage * catsPerPage;
+        int endIndex = Math.min(visibleCategories.size(), startIndex + catsPerPage);
+
+        String pageText = (legendPage + 1) + "/" + legendPages;
+
+        int totalWidth = pieTextureWidth + 100;
+        int cx = (this.width - totalWidth) / 2 + pieTextureWidth + 10;
+        int legendWidth = 80;
+
+        int legendBoxHeight = 12 * catsPerPage;
+        int paginationHeight = 20;
+        int totalLegendHeight = legendBoxHeight + paginationHeight + 5;
+
+        int legendTop = areaCenterY - (totalLegendHeight / 2) + paginationHeight + 5;
+
+        int paginationY = legendTop - paginationHeight - 5;
+
+        legendPrevBtn.setX(cx);
+        legendNextBtn.setX(cx + legendWidth - 20);
+        legendPrevBtn.setY(paginationY);
+        legendNextBtn.setY(paginationY);
+
+        int midX = cx + legendWidth / 2;
+        context.drawCenteredTextWithShadow(this.textRenderer, pageText, midX, paginationY + 5, 0xFFFFFF);
+
+        for (int i = startIndex; i < endIndex; i++) {
+            String category = visibleCategories.get(i);
+            boolean hidden = hiddenCategories.contains(category);
+
+            int color = getCategoryColor(category);
+            if (hidden) {
+                color = darken(color, 0.4f);
             }
 
-            context.drawCenteredTextWithShadow(
-                    this.textRenderer,
-                    Text.literal(displayText),
-                    xOffset + BAR_WIDTH / 2,
-                    legendYOffset,
-                    0xFFFFFF
-            );
+            int lineY = legendTop + (i - startIndex) * 12;
 
-            context.drawCenteredTextWithShadow(
-                    this.textRenderer,
-                    Text.literal(formatNumberShorthand(count)),
-                    xOffset + BAR_WIDTH / 2,
-                    graphY + (graphHeight - barHeight) - 10,
-                    0xFFFFFF
-            );
+            context.fill(cx, lineY, cx + 10, lineY + 10, color);
 
-            if (mouseX >= xOffset && mouseX <= xOffset + BAR_WIDTH && mouseY >= graphY && mouseY <= graphY + graphHeight) {
-                showTooltip = true;
-                tooltipCategory = category;
+            String displayStr = category.substring(0, 1).toUpperCase() + category.substring(1).toLowerCase();
+            Text display = hidden ? Text.literal(displayStr).styled(style -> style.withItalic(true).withColor(0xFFAAAAAA)) : Text.literal(displayStr).styled(style -> style.withColor(0xFFFFFFFF));
 
-                List<Map.Entry<String, Integer>> items = categoryItemsMap.get(category);
-                if (items != null && !items.isEmpty()) {
-                    for (Map.Entry<String, Integer> itemEntry : items) {
-                        String itemTranslationKey = itemEntry.getKey();
-                        Registries.ITEM.stream()
-                                .filter(item -> item.getTranslationKey().equals(itemTranslationKey))
-                                .findFirst()
-                                .ifPresent(item -> {
-                                    tooltipItemStacks.add(item.getDefaultStack());
-                                    tooltipItemTexts.add(Text.literal(item.getName().getString() + " - " + formatNumberShorthand(itemEntry.getValue())));
-                                });
+            int textStartX = cx + 12;
+            int textEndX = cx + legendWidth;
+            int textStartY = lineY + 2;
+            int textEndY = lineY + 12;
+
+            context.enableScissor(textStartX, textStartY, textEndX, textEndY);
+            renderScrollableText(context, this.textRenderer, display, textStartX, textStartY, textEndX, textEndY, 0xFFFFFF);
+            context.disableScissor();
+        }
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        super.mouseClicked(mouseX, mouseY, button);
+
+        int catsPerPage = 8;
+        int startIndex = legendPage * catsPerPage;
+        int endIndex = Math.min(visibleCategories.size(), startIndex + catsPerPage);
+
+        int totalWidth = pieTextureWidth + 100;
+        int cx = (this.width - totalWidth) / 2 + pieTextureWidth + 10;
+        int legendWidth = 80;
+
+        int legendBoxHeight = 12 * catsPerPage;
+        int paginationHeight = 20;
+        int totalLegendHeight = legendBoxHeight + paginationHeight + 5;
+
+        int legendTop = (this.height - totalLegendHeight) / 2 + paginationHeight + 5;
+
+        for (int i = startIndex; i < endIndex; i++) {
+            int lineY = legendTop + (i - startIndex) * 12;
+
+            if (mouseX >= cx && mouseX < cx + legendWidth && mouseY >= lineY && mouseY < lineY + 10) {
+                String category = visibleCategories.get(i);
+
+                if (hiddenCategories.contains(category)) hiddenCategories.remove(category);
+                else hiddenCategories.add(category);
+
+                pieNeedsUpdate = true;
+                break;
+            }
+        }
+
+        return true;
+    }
+
+    private int getCategoryColor(String category) {
+        return categoryColors.getOrDefault(category, generateColorFromString(category));
+    }
+
+    private int generateColorFromString(String str) {
+        int hash = str.hashCode();
+
+        float hue = (Math.abs(hash) % 360) / 360.0f;
+
+        float saturation = 0.7f;
+        float brightness = 0.9f;
+
+        int rgb = Color.HSBtoRGB(hue, saturation, brightness);
+
+        return 0xFF000000 | (rgb & 0x00FFFFFF);
+    }
+
+    private void generatePieTexture() {
+        if (pieTexture != null) {
+            MinecraftClient.getInstance().getTextureManager().destroyTexture(pieTextureId);
+
+            pieTexture.close();
+            pieTexture = null;
+        }
+
+        int radius = 80;
+        int margin = 20;
+        pieTextureWidth = radius * 2 + margin * 2;
+        pieTextureHeight = radius * 2 + margin * 2;
+
+        pieImage = new NativeImage(NativeImage.Format.RGBA, pieTextureWidth, pieTextureHeight, false);
+        pieImage.fillRect(0, 0, pieTextureWidth, pieTextureHeight, 0x00000000);
+
+        Matrix4f transform = new Matrix4f()
+                .identity()
+                .translate(radius + margin, radius + margin, 0)
+                .rotate(RotationAxis.POSITIVE_X.rotationDegrees(45f))
+                .translate(-(radius + margin), -(radius + margin), 0);
+
+        int total = 0;
+        for (var e : categoryTotals.entrySet()) {
+            if (!hiddenCategories.contains(e.getKey())) {
+                total += e.getValue();
+            }
+        }
+
+        List<SliceInfo> slices = new ArrayList<>();
+        float accumulatedAngle = 0f;
+
+        for (var e : categoryTotals.entrySet()) {
+            if (hiddenCategories.contains(e.getKey())) continue;
+
+            float fraction = (total == 0) ? 0 : (e.getValue() / (float) total);
+            float angle = 360f * fraction;
+            slices.add(new SliceInfo(e.getKey(), accumulatedAngle, accumulatedAngle + angle));
+            accumulatedAngle += angle;
+        }
+
+        if (slices.size() == 1) {
+            SliceInfo singleSlice = slices.get(0);
+            int color = getCategoryColor(singleSlice.category);
+
+            fillCircleWithThickness(pieImage, radius + margin, radius + margin, radius, color, transform, 6);
+        } else {
+            int thickness = 6;
+
+            int centerX = radius + margin;
+            int centerY = radius + margin;
+
+            int minX = centerX - radius;
+            int maxX = centerX + radius;
+            int minY = centerY - radius;
+            int maxY = centerY + radius;
+
+            for (int px = minX; px <= maxX; px++) {
+                float dx = px - centerX;
+
+                for (int py = minY; py <= maxY; py++) {
+                    float dy = py - centerY;
+
+                    if (dx * dx + dy * dy <= radius * radius) {
+                        float angle = (float) Math.toDegrees(Math.atan2(dy, dx));
+
+                        if (angle < 0) angle += 360f;
+
+                        int colorArgb = 0x00000000;
+                        for (SliceInfo slice : slices) {
+                            if (isAngleInSlice(angle, slice.startAngle, slice.endAngle)) {
+                                colorArgb = getCategoryColor(slice.category);
+                                break;
+                            }
+                        }
+
+                        if (colorArgb == 0x00000000) continue;
+                        int color = (colorArgb & 0xFF00FF00) | ((colorArgb & 0x00FF0000) >> 16) | ((colorArgb & 0x000000FF) << 16);
+
+                        Vector4f pos = new Vector4f(px, py, 0, 1).mul(transform);
+                        int rx = (int) pos.x;
+                        int ry = (int) pos.y;
+
+                        if (rx >= 0 && rx < pieImage.getWidth() && ry >= 0 && ry < pieImage.getHeight()) {
+                            pieImage.setColor(rx, ry, color);
+                        }
+
+                        int darkColor = darken(colorArgb, 0.5f);
+                        color = (darkColor & 0xFF00FF00) | ((darkColor & 0x00FF0000) >> 16) | ((darkColor & 0x000000FF) << 16);
+
+                        for (int t = 1; t <= thickness; t++) {
+                            int wallY = ry + t;
+                            if (wallY >= 0 && wallY < pieImage.getHeight()) {
+                                pieImage.setColor(rx, wallY, color);
+                            }
+                        }
                     }
-                } else {
-                    tooltipItemTexts.add(Text.translatable("tooltip.craftsense.no_items_found"));
                 }
             }
-
-            xOffset += BAR_WIDTH + 5;
-            colorIndex++;
         }
 
-        if (showTooltip && tooltipCategory != null) {
-            OmnilibClient.showTooltip(
-                    context,
-                    this.textRenderer,
-                    tooltipCategory,
-                    tooltipItemStacks,
-                    tooltipItemTexts,
-                    Argb.getArgb(150, 60, 60, 60),
-                    null,
-                    0xFFFFFF,
-                    null,
-                    mouseX + 10,
-                    mouseY + 10
-            );
+        pieTexture = new NativeImageBackedTexture(pieImage);
+        pieTextureId = MinecraftClient.getInstance().getTextureManager().registerDynamicTexture("craftsense_pie", pieTexture);
+    }
+
+    private void fillCircleWithThickness(NativeImage image, int centerX, int centerY, int radius, int colorArgb, Matrix4f transform, int thickness) {
+        int minX = centerX - radius;
+        int maxX = centerX + radius;
+        int minY = centerY - radius;
+        int maxY = centerY + radius;
+
+        for (int px = minX; px <= maxX; px++) {
+            float dx = px - centerX;
+
+            for (int py = minY; py <= maxY; py++) {
+                float dy = py - centerY;
+
+                if (dx * dx + dy * dy <= radius * radius) {
+                    Vector4f pos = new Vector4f(px, py, 0, 1).mul(transform);
+                    int rx = (int) pos.x;
+                    int ry = (int) pos.y;
+
+                    int color = (colorArgb & 0xFF00FF00) | ((colorArgb & 0x00FF0000) >> 16) | ((colorArgb & 0x000000FF) << 16);
+
+                    if (rx >= 0 && rx < image.getWidth() && ry >= 0 && ry < image.getHeight()) {
+                        image.setColor(rx, ry, color);
+                    }
+
+                    int darkColor = darken(colorArgb, 0.5f);
+                    color = (darkColor & 0xFF00FF00) | ((darkColor & 0x00FF0000) >> 16) | ((darkColor & 0x000000FF) << 16);
+                    for (int t = 1; t <= thickness; t++) {
+                        int wallY = ry + t;
+                        if (wallY >= 0 && wallY < image.getHeight()) {
+                            image.setColor(rx, wallY, color);
+                        }
+                    }
+                }
+            }
         }
     }
 
-    private String trimTextToFit(String text, int maxWidth, TextRenderer textRenderer) {
-        String ellipsis = "...";
-        int ellipsisWidth = textRenderer.getWidth(ellipsis);
+    private boolean isAngleInSlice(float angle, float startDeg, float endDeg) {
+        startDeg %= 360; if (startDeg < 0) startDeg += 360;
+        endDeg %= 360; if (endDeg < 0) endDeg += 360;
 
-        for (int i = text.length(); i > 0; i--) {
-            String subText = text.substring(0, i);
-            if (textRenderer.getWidth(subText) + ellipsisWidth <= maxWidth) {
-                return subText + ellipsis;
+        if (endDeg >= startDeg) {
+            return angle >= startDeg && angle <= endDeg;
+        } else {
+            return (angle >= startDeg && angle < 360) || (angle >= 0 && angle <= endDeg);
+        }
+    }
+
+    private int darken(int color, float factor) {
+        int a = (color >>> 24) & 0xFF;
+        int r = (color >>> 16) & 0xFF;
+        int g = (color >>> 8)  & 0xFF;
+        int b = (color)        & 0xFF;
+        r = (int)(r * factor);
+        g = (int)(g * factor);
+        b = (int)(b * factor);
+
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    private void handlePieHover(DrawContext context, int mouseX, int mouseY, int cx, int cy, int radius) {
+        float dx = mouseX - cx;
+        float dy = mouseY - cy;
+
+        if (dx * dx + dy * dy <= radius * radius) {
+            List<Map.Entry<String, Integer>> visibleSlices = categoryTotals.entrySet()
+                    .stream()
+                    .filter(e -> !hiddenCategories.contains(e.getKey()))
+                    .toList();
+
+            if (visibleSlices.size() == 1) {
+                String category = visibleSlices.get(0).getKey();
+                showTooltipForCategory(context, category, mouseX, mouseY);
+            } else {
+                float angle = (float) Math.toDegrees(Math.atan2(dy, dx));
+
+                if (angle < 0) angle += 360;
+
+                int total = 0;
+                List<Map.Entry<String, Integer>> slices = new ArrayList<>();
+
+                for (var e : categoryTotals.entrySet()) {
+                    if (!hiddenCategories.contains(e.getKey())) {
+                        total += e.getValue();
+                        slices.add(e);
+                    }
+                }
+
+                float accum = 0f;
+                for (var slice : slices) {
+                    float fraction = total == 0 ? 0 : (slice.getValue() / (float) total);
+                    float sliceAngle = 360 * fraction;
+                    float start = accum;
+                    float end = accum + sliceAngle;
+
+                    if (isAngleInSlice(angle, start, end)) {
+                        String category = slice.getKey();
+                        showTooltipForCategory(context, category, mouseX, mouseY);
+                        break;
+                    }
+
+                    accum += sliceAngle;
+                }
             }
         }
+    }
 
-        return ellipsis;
+    private void showTooltipForCategory(DrawContext context, String category, int mouseX, int mouseY) {
+        var items = categoryItemsMap.getOrDefault(category, List.of());
+
+        List<ItemStack> stacks = new ArrayList<>();
+        List<Text> lines = new ArrayList<>();
+
+        for (var itE : items) {
+            Registries.ITEM.stream()
+                    .filter(it -> it.getTranslationKey().equals(itE.getKey()))
+                    .findFirst()
+                    .ifPresent(it -> {
+                        stacks.add(it.getDefaultStack());
+                        lines.add(Text.literal(it.getName().getString() + " - " + formatNumberShorthand(itE.getValue())));
+                    });
+        }
+
+        OmnilibClient.showTooltip(
+                context,
+                this.textRenderer,
+                category,
+                stacks,
+                lines.isEmpty()
+                        ? List.of(Text.translatable("tooltip.craftsense.no_items_found"))
+                        : lines,
+                0x99000000,
+                null,
+                0xFFFFFF,
+                null,
+                mouseX + 10,
+                mouseY + 10
+        );
     }
 
     private String formatNumberShorthand(int number) {
@@ -292,6 +573,7 @@ public class CraftSenseStatsScreen extends Screen {
         } else if (number >= 1_000) {
             return String.format("%.1fK", number / 1_000.0);
         }
+
         return String.valueOf(number);
     }
 
@@ -301,6 +583,42 @@ public class CraftSenseStatsScreen extends Screen {
             this.close();
             return true;
         }
+
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    private static void renderScrollableText(DrawContext context, TextRenderer textRenderer, Text text, int startX, int startY, int endX, int endY, int color) {
+        int textWidth = textRenderer.getWidth(text);
+        int availableWidth = endX - startX;
+        int pauseTime = 1000;
+        double scrollSpeed = 5.0;
+
+        if (textWidth > availableWidth) {
+            int overflowWidth = textWidth - availableWidth;
+
+            long currentTime = System.currentTimeMillis();
+            long totalCycleTime = (long) ((overflowWidth / scrollSpeed) * 1000) * 2 + pauseTime * 2;
+            long timeInCycle = currentTime % totalCycleTime;
+
+            int scrollOffset;
+
+            if (timeInCycle < pauseTime) {
+                scrollOffset = 0;
+            } else if (timeInCycle < pauseTime + (overflowWidth / scrollSpeed) * 1000) {
+                double elapsed = timeInCycle - pauseTime;
+                scrollOffset = (int) (elapsed * scrollSpeed / 1000);
+            } else if (timeInCycle < pauseTime + (overflowWidth / scrollSpeed) * 1000 + pauseTime) {
+                scrollOffset = overflowWidth;
+            } else {
+                double elapsed = timeInCycle - pauseTime - (overflowWidth / scrollSpeed) * 1000 - pauseTime;
+                scrollOffset = overflowWidth - (int) (elapsed * scrollSpeed / 1000);
+            }
+
+            context.enableScissor(startX, startY, endX, endY);
+            context.drawTextWithShadow(textRenderer, text, startX - scrollOffset, startY + (endY - startY - 9) / 2, color);
+            context.disableScissor();
+        } else {
+            context.drawTextWithShadow(textRenderer, text, startX, startY + (endY - startY - 9) / 2, color);
+        }
     }
 }
