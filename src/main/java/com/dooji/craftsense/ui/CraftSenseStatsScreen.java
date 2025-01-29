@@ -94,37 +94,39 @@ public class CraftSenseStatsScreen extends Screen {
         );
         this.addDrawableChild(closeButton);
 
-        legendPrevBtn = OmnilibClient.createOmniButton(
-                0,
-                0,
-                20,
-                20,
-                Text.literal("<"),
-                0x99000000,
-                0xBB000000,
-                0xFFFFFFFF,
-                0xFFEFEFEF,
-                () -> {
-                    if (legendPage > 0) legendPage--;
-                }
-        );
-        this.addDrawableChild(legendPrevBtn);
+        if (!categoryTotals.isEmpty()) {
+            legendPrevBtn = OmnilibClient.createOmniButton(
+                    0,
+                    0,
+                    20,
+                    20,
+                    Text.literal("<"),
+                    0x99000000,
+                    0xBB000000,
+                    0xFFFFFFFF,
+                    0xFFEFEFEF,
+                    () -> {
+                        if (legendPage > 0) legendPage--;
+                    }
+            );
+            this.addDrawableChild(legendPrevBtn);
 
-        legendNextBtn = OmnilibClient.createOmniButton(
-                0,
-                0,
-                20,
-                20,
-                Text.literal(">"),
-                0x99000000,
-                0xBB000000,
-                0xFFFFFFFF,
-                0xFFEFEFEF,
-                () -> {
-                    if (legendPage < legendPages - 1) legendPage++;
-                }
-        );
-        this.addDrawableChild(legendNextBtn);
+            legendNextBtn = OmnilibClient.createOmniButton(
+                    0,
+                    0,
+                    20,
+                    20,
+                    Text.literal(">"),
+                    0x99000000,
+                    0xBB000000,
+                    0xFFFFFFFF,
+                    0xFFEFEFEF,
+                    () -> {
+                        if (legendPage < legendPages - 1) legendPage++;
+                    }
+            );
+            this.addDrawableChild(legendNextBtn);
+        }
     }
 
     private void recalculateStats() {
@@ -187,6 +189,10 @@ public class CraftSenseStatsScreen extends Screen {
 
         renderPieChart(context, mouseX, mouseY, areaCenterY);
         renderLegend(context, areaCenterY);
+
+        if (categoryTotals.isEmpty()) {
+            context.drawCenteredTextWithShadow(this.textRenderer, Text.translatable("screen.craftsense.no_history"), this.width / 2, areaCenterY, 0xAAAAAA);
+        }
     }
 
     private void renderPieChart(DrawContext context, int mouseX, int mouseY, int areaCenterY) {
@@ -204,6 +210,10 @@ public class CraftSenseStatsScreen extends Screen {
     }
 
     private void renderLegend(DrawContext context, int areaCenterY) {
+        if (categoryTotals.isEmpty()) {
+            return;
+        }
+
         int catsPerPage = 8;
         int startIndex = legendPage * catsPerPage;
         int endIndex = Math.min(visibleCategories.size(), startIndex + catsPerPage);
