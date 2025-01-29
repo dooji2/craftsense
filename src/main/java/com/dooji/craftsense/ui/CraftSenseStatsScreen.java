@@ -554,8 +554,8 @@ public class CraftSenseStatsScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers){
-        if (keyCode == 256){
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == 256) {
             this.close();
             return true;
         }
