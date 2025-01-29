@@ -30,7 +30,7 @@
 		"minecraft": "~1.21.3",
 		"java": ">=21",
 		"fabric-api": "*",
-		"omnilib": ">=0.1.2"
+		"omnilib": ">=0.1.4"
 	},
 	"suggests": {
 		"another-mod": "*"
