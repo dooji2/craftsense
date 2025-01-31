@@ -36,7 +36,6 @@ public class CraftSenseClient implements ClientModInitializer {
                 if (configManager.isFirstTime()) {
                     String toggleKeyText = CraftSenseKeyBindings.toggleKey.getBoundKeyLocalizedText().getString();
                     createToast("Welcome to CraftSense", "Toggle CraftSense with " + toggleKeyText);
-                    configManager.toggleFirstTime();
                 }
             }
 
