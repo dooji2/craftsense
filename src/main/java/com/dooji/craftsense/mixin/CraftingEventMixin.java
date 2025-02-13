@@ -7,6 +7,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.screen.CraftingScreenHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.world.World;
 
@@ -20,7 +21,7 @@ public abstract class CraftingEventMixin {
 
     @Inject(method = "onCraftByPlayer", at = @At("HEAD"))
     private void onCraft(ItemStack stack, World world, PlayerEntity player, CallbackInfo ci) {
-        if (!world.isClient && player instanceof ServerPlayerEntity serverPlayer) {
+        if (player instanceof ServerPlayerEntity serverPlayer && serverPlayer.currentScreenHandler instanceof CraftingScreenHandler) {
             RecordCraftPayload payload = new RecordCraftPayload(stack.copy());
             ServerPlayNetworking.send(serverPlayer, payload);
         }
