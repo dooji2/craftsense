@@ -36,10 +36,10 @@ public class CraftingPredictor {
     }
 
     public static CraftingPredictor getInstance() {
-        if (instance == null || instance.recipeManager != recipeManager) {
+        if (instance == null) {
             instance = new CraftingPredictor();
         }
-        
+
         return instance;
     }
 
