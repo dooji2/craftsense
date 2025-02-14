@@ -224,7 +224,7 @@ public class CraftSenseNetworking {
         
         for (int i = 0; i < gridInventory.size(); i++) {
             ItemStack currentStack = gridInventory.getStack(i);
-            player.networkHandler.sendPacket(new ScreenHandlerSlotUpdateS2CPacket(handler.syncId, i + 1, 0, currentStack));
+            player.networkHandler.sendPacket(new ScreenHandlerSlotUpdateS2CPacket(handler.syncId, 0, i + 1, currentStack));
         }
     }
 
