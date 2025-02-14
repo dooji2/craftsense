@@ -184,9 +184,7 @@ public class CraftSenseNetworking {
                 continue;
             }
 
-            player.networkHandler.sendPacket(new ScreenHandlerSlotUpdateS2CPacket(
-                    handler.syncId, i + 1, 0, currentStack
-            ));
+            player.networkHandler.sendPacket(new ScreenHandlerSlotUpdateS2CPacket(handler.syncId, 0, i + 1, currentStack));
         }
     }
 
