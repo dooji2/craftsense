@@ -418,8 +418,12 @@ public class CraftSenseStatsScreen extends Screen {
             }
         }
 
-        pieTexture = new NativeImageBackedTexture(pieImage);
-        pieTextureId = MinecraftClient.getInstance().getTextureManager().registerDynamicTexture("craftsense_pie", pieTexture);
+        pieTexture = new NativeImageBackedTexture(() -> "craftsense_pie", pieImage);
+
+        Identifier id = Identifier.of("craftsense", "craftsense_pie");
+        MinecraftClient.getInstance().getTextureManager().registerTexture(id, pieTexture);
+        
+        pieTextureId = id;
     }
 
     private void fillCircleWithThickness(NativeImage image, int centerX, int centerY, int radius, int color, Matrix4f transform, int thickness) {

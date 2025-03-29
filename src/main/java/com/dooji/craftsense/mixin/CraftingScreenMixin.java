@@ -43,7 +43,9 @@ import net.minecraft.world.World;
 
 import org.joml.Matrix4f;
 import org.joml.Vector2i;
-import com.mojang.blaze3d.systems.RenderSystem;
+import org.lwjgl.opengl.GL11;
+
+import com.mojang.blaze3d.opengl.GlStateManager;
 
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -55,6 +57,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Mixin(RecipeBookScreen.class)
 public abstract class CraftingScreenMixin {
@@ -314,7 +317,7 @@ public abstract class CraftingScreenMixin {
 
                     if (optionalIngredient.isPresent()) {
                         Ingredient ingredient = optionalIngredient.get();
-                        List<RegistryEntry<Item>> matchingItems = ingredient.getMatchingItems();
+                        List<RegistryEntry<Item>> matchingItems = ingredient.getMatchingItems().collect(Collectors.toList());
 
                         if (!matchingItems.isEmpty()) {
                             ItemStack ghostStack = new ItemStack(matchingItems.get(0).value());
@@ -372,7 +375,7 @@ public abstract class CraftingScreenMixin {
             }
 
             if (!matched) {
-                List<RegistryEntry<Item>> matchingItems = ingredient.getMatchingItems();
+                List<RegistryEntry<Item>> matchingItems = ingredient.getMatchingItems().collect(Collectors.toList());
                 if (!matchingItems.isEmpty()) {
                     remainingIngredients.add(new ItemStack(matchingItems.get(0).value()));
                 }
@@ -410,8 +413,8 @@ public abstract class CraftingScreenMixin {
         context.getMatrices().push();
         context.getMatrices().translate(0, 0, -100);
 
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
+        GlStateManager._enableBlend();
+        GlStateManager._blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
 
         context.drawItemWithoutEntity(stack, x, y);
 
@@ -426,7 +429,7 @@ public abstract class CraftingScreenMixin {
             context.drawTooltip(MinecraftClient.getInstance().textRenderer, tooltip, mouseX, mouseY);
         }
 
-        RenderSystem.disableBlend();
+        GlStateManager._disableBlend();
         context.getMatrices().pop();
     }
 

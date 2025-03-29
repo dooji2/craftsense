@@ -43,7 +43,7 @@ public class CraftingPredictor {
     }
 
     public List<ItemStack> getAvailableItems(PlayerInventory playerInventory, ItemStack cursorStack, RecipeInputInventory craftingGrid) {
-        List<ItemStack> availableItems = new ArrayList<>(playerInventory.main);
+        List<ItemStack> availableItems = new ArrayList<>(playerInventory.getMainStacks());
 
         if (!cursorStack.isEmpty()) {
             availableItems.add(cursorStack.copy());
@@ -239,12 +239,12 @@ public class CraftingPredictor {
         List<Ingredient> ingredients = recipe.getIngredientPlacement().getIngredients();
 
         for (Ingredient ingredient : ingredients) {
-            if (ingredient.getMatchingItems().isEmpty()) {
+            if (ingredient.getMatchingItems().findAny().isEmpty()) {
                 continue;
             }
 
             boolean found = false;
-            for (RegistryEntry<Item> matchingItemEntry : ingredient.getMatchingItems()) {
+            for (RegistryEntry<Item> matchingItemEntry : ingredient.getMatchingItems().collect(Collectors.toList())) {
                 Item matchingItem = matchingItemEntry.value();
                 ItemStack matchingStack = new ItemStack(matchingItem);
                 if (decrementAvailableItemCount(tempAvailableItems, matchingStack)) {
@@ -265,7 +265,7 @@ public class CraftingPredictor {
         int score = -1;
 
         List<ItemStack> availableItems = new ArrayList<>();
-        for (ItemStack stack : playerInventory.main) {
+        for (ItemStack stack : playerInventory.getMainStacks()) {
             availableItems.add(stack.copy());
         }
 
@@ -309,7 +309,7 @@ public class CraftingPredictor {
             hashBuilder.append(stack.isEmpty() ? "-" : stack.getItem().getTranslationKey() + ":" + stack.getCount()).append(",");
         }
 
-        for (ItemStack stack : playerInventory.main) {
+        for (ItemStack stack : playerInventory.getMainStacks()) {
             hashBuilder.append(stack.isEmpty() ? "-" : stack.getItem().getTranslationKey() + ":" + stack.getCount()).append(",");
         }
 
@@ -381,7 +381,7 @@ public class CraftingPredictor {
                         }
                     } else {
                         boolean found = false;
-                        for (RegistryEntry<Item> matchingItem : ingredient.get().getMatchingItems()) {
+                        for (RegistryEntry<Item> matchingItem : ingredient.get().getMatchingItems().collect(Collectors.toList())) {
                             if (decrementAvailableItemCount(tempAvailableItems, new ItemStack(matchingItem.value()))) {
                                 score += 1;
                                 found = true;
@@ -447,7 +447,7 @@ public class CraftingPredictor {
 
         for (Ingredient ingredient : ingredientsToMatch) {
             boolean found = false;
-            for (RegistryEntry<Item> matchingItemEntry : ingredient.getMatchingItems()) {
+            for (RegistryEntry<Item> matchingItemEntry : ingredient.getMatchingItems().collect(Collectors.toList())) {
                 Item matchingItem = matchingItemEntry.value();
                 ItemStack matchingStack = new ItemStack(matchingItem);
                 if (decrementAvailableItemCount(tempAvailableItems, matchingStack)) {
@@ -470,7 +470,7 @@ public class CraftingPredictor {
     }
 
     private boolean playerInventoryContainsWeapon(PlayerInventory playerInventory) {
-        for (ItemStack stack : playerInventory.main) {
+        for (ItemStack stack : playerInventory.getMainStacks()) {
             if (!stack.isEmpty() && (stack.getItem().getTranslationKey().toUpperCase().contains("SWORD") || stack.getItem().getTranslationKey().toUpperCase().contains("_AXE"))) {
                 return true;
             }
