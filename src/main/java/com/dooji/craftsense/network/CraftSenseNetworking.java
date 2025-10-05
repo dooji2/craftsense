@@ -13,15 +13,15 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket;
 import net.minecraft.recipe.CraftingRecipe;
 import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.RecipeEntry;
 import net.minecraft.recipe.RecipeManager;
 import net.minecraft.screen.CraftingScreenHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
+import net.minecraft.registry.DynamicRegistryManager;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class CraftSenseNetworking {
     public static void init() {
@@ -48,8 +48,14 @@ public class CraftSenseNetworking {
 
             if (player.currentScreenHandler instanceof CraftingScreenHandler handler) {
                 RecipeInputInventory gridInventory = ((CraftingScreenHandlerAccessor) handler).getInput();
-                ItemStack resultStack = recipe.getResult(player.getServer().getRegistryManager()).copy();
+                DynamicRegistryManager registries = player.getServer().getRegistryManager();
+                ItemStack resultStack = recipe.getResult(registries).copy();
                 ItemStack cursorStack = handler.getCursorStack();
+
+                CraftingRecipe recipeToUse = selectCraftableVariant(recipeManager, resultStack, inventory, gridInventory, cursorStack, registries);
+                if (recipeToUse == null) {
+                    return;
+                }
 
                 if (payload.isShiftPressed()) {
                     if (!placeInInventoryOrCursor(inventory, resultStack, player)) {
@@ -74,6 +80,28 @@ public class CraftSenseNetworking {
                 }
             }
         }
+    }
+
+    private static CraftingRecipe selectCraftableVariant(RecipeManager recipeManager, ItemStack desiredResult, PlayerInventory inventory, RecipeInputInventory gridInventory, ItemStack cursorStack, DynamicRegistryManager registries) {
+        if (desiredResult.isEmpty()) {
+            return null;
+        }
+
+        List<RecipeEntry<?>> all = recipeManager.values().stream().collect(Collectors.toList());
+        List<CraftingRecipe> candidates = all.stream()
+                .map(RecipeEntry::value)
+                .filter(r -> r instanceof CraftingRecipe)
+                .map(r -> (CraftingRecipe) r)
+                .filter(r -> areStacksEqualWithComponents(r.getResult(registries).copy(), desiredResult))
+                .collect(Collectors.toList());
+
+        for (CraftingRecipe candidate : candidates) {
+            if (hasAllIngredients(inventory, gridInventory, candidate, cursorStack)) {
+                return candidate;
+            }
+        }
+
+        return null;
     }
 
     private static boolean areStacksEqualWithComponents(ItemStack stack1, ItemStack stack2) {
