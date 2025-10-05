@@ -10,6 +10,8 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.recipe.CraftingRecipe;
 import net.minecraft.recipe.RecipeManager;
+import net.minecraft.recipe.RecipeType;
+import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.RecipeInputInventory;
 import net.minecraft.item.ItemStack;
@@ -17,6 +19,7 @@ import net.minecraft.screen.CraftingScreenHandler;
 import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -43,8 +46,14 @@ public class CraftSenseNetworking {
 
             if (player.currentScreenHandler instanceof CraftingScreenHandler handler) {
                 RecipeInputInventory gridInventory = ((CraftingScreenHandlerAccessor) handler).getInput();
-                ItemStack resultStack = recipe.getOutput(player.getServer().getRegistryManager()).copy();
+                DynamicRegistryManager.Immutable registries = player.getServer().getRegistryManager();
+                ItemStack resultStack = recipe.getOutput(registries).copy();
                 ItemStack cursorStack = handler.getCursorStack();
+
+                CraftingRecipe recipeToUse = selectCraftableVariant(recipeManager, resultStack, inventory, gridInventory, cursorStack, registries);
+                if (recipeToUse == null) {
+                    return;
+                }
 
                 if (payload.isShiftPressed()) {
                     if (!placeInInventoryOrCursor(inventory, resultStack, player)) {
@@ -63,12 +72,30 @@ public class CraftSenseNetworking {
                     }
                 }
 
-                if (hasAllIngredients(inventory, gridInventory, recipe, cursorStack)) {
-                    consumeIngredients(recipe, gridInventory, inventory, cursorStack);
+                if (hasAllIngredients(inventory, gridInventory, recipeToUse, cursorStack)) {
+                    consumeIngredients(recipeToUse, gridInventory, inventory, cursorStack);
                     clearGridAndSync(handler, player);
                 }
             }
         }
+    }
+
+    private static CraftingRecipe selectCraftableVariant(RecipeManager recipeManager, ItemStack desiredResult, PlayerInventory inventory, RecipeInputInventory gridInventory, ItemStack cursorStack, DynamicRegistryManager registries) {
+        if (desiredResult.isEmpty()) {
+            return null;
+        }
+
+        List<CraftingRecipe> candidates = recipeManager.listAllOfType(RecipeType.CRAFTING).stream()
+                .filter(r -> areStacksEqualWithComponents(r.getOutput(registries).copy(), desiredResult))
+                .toList();
+
+        for (CraftingRecipe candidate : candidates) {
+            if (hasAllIngredients(inventory, gridInventory, candidate, cursorStack)) {
+                return candidate;
+            }
+        }
+
+        return null;
     }
 
     private static boolean areStacksEqualWithComponents(ItemStack stack1, ItemStack stack2) {
