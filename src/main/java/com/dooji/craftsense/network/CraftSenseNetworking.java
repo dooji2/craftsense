@@ -71,6 +71,11 @@ public class CraftSenseNetworking {
                     ItemStack resultStack = getRecipeResult(craftingRecipe);
                     ItemStack cursorStack = handler.getCursorStack();
 
+                    CraftingRecipe recipeToUse = selectCraftableVariant(recipeManager, craftingRecipe, resultStack, inventory, gridInventory, cursorStack);
+                    if (recipeToUse == null) {
+                        return;
+                    }
+
                     if (isShiftPressed) {
                         if (!placeInInventoryOrCursor(inventory, resultStack, player)) {
                             return;
@@ -89,13 +94,35 @@ public class CraftSenseNetworking {
                         }
                     }
 
-                    if (hasAllIngredients(inventory, gridInventory, craftingRecipe, cursorStack)) {
-                        consumeIngredients(craftingRecipe, gridInventory, inventory, cursorStack);
+                    if (hasAllIngredients(inventory, gridInventory, recipeToUse, cursorStack)) {
+                        consumeIngredients(recipeToUse, gridInventory, inventory, cursorStack);
                         clearGridAndSync(handler, player);
                     }
                 }
             }
         }
+    }
+
+    private static CraftingRecipe selectCraftableVariant(RecipeManager recipeManager, CraftingRecipe requestedRecipe, ItemStack desiredResult, PlayerInventory inventory, RecipeInputInventory gridInventory, ItemStack cursorStack) {
+        if (desiredResult.isEmpty()) {
+            return null;
+        }
+
+        List<RecipeEntry<?>> all = ((ServerRecipeManager) recipeManager).values().stream().collect(Collectors.toList());
+        List<CraftingRecipe> candidates = all.stream()
+                .map(RecipeEntry::value)
+                .filter(r -> r instanceof CraftingRecipe)
+                .map(r -> (CraftingRecipe) r)
+                .filter(r -> areStacksEqualWithComponents(getRecipeResult(r), desiredResult))
+                .collect(Collectors.toList());
+
+        for (CraftingRecipe candidate : candidates) {
+            if (hasAllIngredients(inventory, gridInventory, candidate, cursorStack)) {
+                return candidate;
+            }
+        }
+
+        return null;
     }
 
     private static ItemStack getRecipeResult(CraftingRecipe recipe) {

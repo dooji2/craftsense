@@ -1,12 +1,16 @@
 package com.dooji.craftsense;
 
+import java.util.List;
+
 import com.dooji.craftsense.manager.CategoryGenerator;
 import com.dooji.craftsense.manager.ConfigurationManager;
 import com.dooji.craftsense.manager.CraftSenseTracker;
 import com.dooji.craftsense.network.CraftSenseClientNetworking;
 import com.dooji.craftsense.network.payloads.RecipesRequestPayload;
+import com.dooji.craftsense.omnilib.OmniButton;
+import com.dooji.craftsense.omnilib.OmniToast;
+import com.dooji.craftsense.omnilib.OmniTooltip;
 import com.dooji.craftsense.ui.CraftSenseStatsScreen;
-import com.dooji.omnilib.OmnilibClient;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
@@ -14,7 +18,10 @@ import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.item.ItemStack;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -71,7 +78,7 @@ public class CraftSenseClient implements ClientModInitializer {
                 ? Identifier.of("minecraft", "textures/block/redstone_lamp_on.png")
                 : Identifier.of("minecraft", "textures/block/redstone_lamp.png");
 
-        OmnilibClient.showToast(
+        showToast(
                 title,
                 description,
                 5000,
@@ -84,5 +91,81 @@ public class CraftSenseClient implements ClientModInitializer {
                 170,
                 32
         );
+    }
+
+    // Omnilib functions
+    public static void showTooltip(
+        DrawContext context,
+        TextRenderer textRenderer,
+        String categoryTitle,
+        List<ItemStack> itemStacks,
+        List<Text> textList,
+        int backgroundColor,
+        Identifier backgroundTexture,
+        int textColor,
+        Identifier customTexture,
+        int x,
+        int y) {
+
+        OmniTooltip tooltip = new OmniTooltip(
+                categoryTitle,
+                itemStacks,
+                textList,
+                16,
+                8,
+                4,
+                backgroundColor,
+                backgroundTexture,
+                textColor,
+                customTexture,
+                16,
+                16
+        );
+
+        tooltip.render(context, textRenderer, x, y);
+    }
+
+	public static void showToast(
+			Text title,
+			Text description,
+			long duration,
+			int titleColor,
+			int descriptionColor,
+			Identifier backgroundTexture,
+			Identifier iconTexture,
+			ItemStack iconItemStack,
+			int iconSize,
+			int textureWidth,
+			int textureHeight) {
+
+		OmniToast toast = new OmniToast(
+				title,
+				description,
+				duration,
+				titleColor,
+				descriptionColor,
+				backgroundTexture,
+				iconTexture,
+				iconItemStack,
+				iconSize,
+				textureWidth,
+				textureHeight
+		);
+
+		MinecraftClient.getInstance().getToastManager().add(toast);
+	}
+
+    public static OmniButton createOmniButton(
+            int x,
+            int y,
+            int width,
+            int height,
+            Text message,
+            int color,
+            int hoverColor,
+            int textColor,
+            int textHoverColor,
+            Runnable onPress) {
+        return new OmniButton(x, y, width, height, message, color, hoverColor, textColor, textHoverColor, onPress);
     }
 }
