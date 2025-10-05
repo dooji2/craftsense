@@ -60,11 +60,11 @@ public class CraftSenseNetworking {
                 } else {
                     if (cursorStack.isEmpty()) {
                         handler.setCursorStack(resultStack);
-                        sendSlotUpdate(player, handler.syncId, -1, resultStack);
+                        // sendSlotUpdate(player, handler.syncId, -1, resultStack);
                     } else if (areStacksEqualWithComponents(cursorStack, resultStack)) {
                         cursorStack.increment(resultStack.getCount());
                         handler.setCursorStack(cursorStack);
-                        sendSlotUpdate(player, handler.syncId, -1, cursorStack);
+                        // sendSlotUpdate(player, handler.syncId, -1, cursorStack);
                     } else {
                         return;
                     }
