@@ -1,9 +1,9 @@
 package com.dooji.craftsense.ui;
 
+import com.dooji.craftsense.CraftSenseClient;
 import com.dooji.craftsense.manager.CategoryHabitsTracker;
 import com.dooji.craftsense.manager.CategoryManager;
-import com.dooji.omnilib.OmnilibClient;
-import com.dooji.omnilib.ui.OmniButton;
+import com.dooji.craftsense.omnilib.OmniButton;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
@@ -85,7 +85,7 @@ public class CraftSenseStatsScreen extends Screen {
     protected void init() {
         recalculateStats();
 
-        closeButton = OmnilibClient.createOmniButton(
+        closeButton = CraftSenseClient.createOmniButton(
                 this.width / 2 - 40,
                 this.height - 40,
                 80,
@@ -97,7 +97,7 @@ public class CraftSenseStatsScreen extends Screen {
         this.addDrawableChild(closeButton);
 
         if (!categoryTotals.isEmpty()) {
-            legendPrevBtn = OmnilibClient.createOmniButton(
+            legendPrevBtn = CraftSenseClient.createOmniButton(
                     0,
                     0,
                     20,
@@ -113,7 +113,7 @@ public class CraftSenseStatsScreen extends Screen {
             );
             this.addDrawableChild(legendPrevBtn);
 
-            legendNextBtn = OmnilibClient.createOmniButton(
+            legendNextBtn = CraftSenseClient.createOmniButton(
                     0,
                     0,
                     20,
@@ -557,7 +557,7 @@ public class CraftSenseStatsScreen extends Screen {
                     });
         }
 
-        OmnilibClient.showTooltip(
+        CraftSenseClient.showTooltip(
                 matrices,
                 this.textRenderer,
                 category,

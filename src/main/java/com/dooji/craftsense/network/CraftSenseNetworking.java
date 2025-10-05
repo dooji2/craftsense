@@ -6,6 +6,7 @@ import com.dooji.craftsense.network.payloads.CraftItemPayload;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 import net.minecraft.recipe.Ingredient;
+import net.minecraft.recipe.RecipeType;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.recipe.CraftingRecipe;
@@ -17,6 +18,7 @@ import net.minecraft.screen.CraftingScreenHandler;
 import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -46,6 +48,11 @@ public class CraftSenseNetworking {
                 ItemStack resultStack = recipe.getOutput().copy();
                 ItemStack cursorStack = handler.getCursorStack();
 
+                CraftingRecipe recipeToUse = selectCraftableVariant(recipeManager, recipe, resultStack, inventory, gridInventory, cursorStack);
+                if (recipeToUse == null) {
+                    return;
+                }
+
                 if (payload.isShiftPressed()) {
                     if (!placeInInventoryOrCursor(inventory, resultStack, player)) {
                         return;
@@ -63,12 +70,31 @@ public class CraftSenseNetworking {
                     }
                 }
 
-                if (hasAllIngredients(inventory, gridInventory, recipe, cursorStack)) {
-                    consumeIngredients(recipe, gridInventory, inventory, cursorStack);
+                if (hasAllIngredients(inventory, gridInventory, recipeToUse, cursorStack)) {
+                    consumeIngredients(recipeToUse, gridInventory, inventory, cursorStack);
                     clearGridAndSync(handler, player);
                 }
             }
         }
+    }
+
+    private static CraftingRecipe selectCraftableVariant(RecipeManager recipeManager, CraftingRecipe requestedRecipe, ItemStack desiredResult, PlayerInventory inventory, CraftingInventory gridInventory, ItemStack cursorStack) {
+        if (desiredResult.isEmpty()) {
+            return null;
+        }
+
+        List<CraftingRecipe> candidates = recipeManager.listAllOfType(RecipeType.CRAFTING).stream()
+                .filter(r -> areStacksEqualWithComponents(r.getOutput().copy(), desiredResult))
+                .toList();
+
+        for (CraftingRecipe candidate : candidates) {
+            boolean ok = hasAllIngredients(inventory, gridInventory, candidate, cursorStack);
+            if (ok) {
+                return candidate;
+            }
+        }
+
+        return null;
     }
 
     private static boolean areStacksEqualWithComponents(ItemStack stack1, ItemStack stack2) {
