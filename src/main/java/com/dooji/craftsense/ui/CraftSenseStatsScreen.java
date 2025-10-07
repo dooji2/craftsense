@@ -7,9 +7,9 @@ import com.dooji.craftsense.omnilib.OmniButton;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.item.Item;
@@ -175,7 +175,7 @@ public class CraftSenseStatsScreen extends Screen {
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 15, 0xFFFFFF);
+        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 15, 0xFFFFFFFF);
 
         if (pieNeedsUpdate) {
             generatePieTexture();
@@ -202,7 +202,7 @@ public class CraftSenseStatsScreen extends Screen {
         int drawY = areaCenterY - pieTextureHeight / 2;
         int totalWidth = pieTextureWidth + 100;
         int cx = (this.width - totalWidth) / 2;
-        context.drawTexture(RenderLayer::getGuiTextured, pieTextureId, cx, drawY, 0, 0, pieTextureWidth, pieTextureHeight, pieTextureWidth, pieTextureHeight);
+        context.drawTexture(RenderPipelines.GUI_TEXTURED, pieTextureId, cx, drawY, 0, 0, pieTextureWidth, pieTextureHeight, pieTextureWidth, pieTextureHeight);
 
         int radius = Math.min(100, (pieTextureHeight - 40) / 2);
         int centerX = cx + (radius + 20);
@@ -239,7 +239,7 @@ public class CraftSenseStatsScreen extends Screen {
         legendNextBtn.setY(paginationY);
 
         int midX = cx + legendWidth / 2;
-        context.drawCenteredTextWithShadow(this.textRenderer, pageText, midX, paginationY + 5, 0xFFFFFF);
+        context.drawCenteredTextWithShadow(this.textRenderer, pageText, midX, paginationY + 5, 0xFFFFFFFF);
 
         for (int i = startIndex; i < endIndex; i++) {
             String category = visibleCategories.get(i);
@@ -263,7 +263,7 @@ public class CraftSenseStatsScreen extends Screen {
             int textEndY = lineY + 12;
 
             context.enableScissor(textStartX, textStartY, textEndX, textEndY);
-            renderScrollableText(context, this.textRenderer, display, textStartX, textStartY, textEndX, textEndY, 0xFFFFFF);
+            renderScrollableText(context, this.textRenderer, display, textStartX, textStartY, textEndX, textEndY, 0xFFFFFFFF);
             context.disableScissor();
         }
     }
@@ -555,7 +555,7 @@ public class CraftSenseStatsScreen extends Screen {
                         : lines,
                 0x99000000,
                 null,
-                0xFFFFFF,
+                0xFFFFFFFF,
                 null,
                 mouseX + 10,
                 mouseY + 10

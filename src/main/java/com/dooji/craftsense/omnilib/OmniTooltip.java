@@ -1,8 +1,8 @@
 package com.dooji.craftsense.omnilib;
 
 import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.render.RenderLayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -20,7 +20,7 @@ public class OmniTooltip {
     private static final int DEFAULT_PADDING = 8;
     private static final int DEFAULT_LINE_SPACING = 4;
     private static final int DEFAULT_BACKGROUND_COLOR = toArgb(150, 60, 60, 60);
-    private static final int DEFAULT_TEXT_COLOR = 0xFFFFFF;
+    private static final int DEFAULT_TEXT_COLOR = 0xFFFFFFFF;
     private static final int DEFAULT_MAX_HEIGHT = 140;
     private static final double DEFAULT_SCROLL_SPEED = 25.0;
 
@@ -91,8 +91,7 @@ public class OmniTooltip {
         int tooltipHeight = getTooltipHeight();
         boolean requiresScrolling = tooltipHeight > maxHeight;
 
-        context.getMatrices().push();
-        context.getMatrices().translate(0, 0, 1);
+        context.getMatrices().pushMatrix();
 
         int displayHeight = requiresScrolling ? maxHeight : tooltipHeight;
         drawBackground(context, x, y, tooltipWidth, displayHeight);
@@ -114,7 +113,7 @@ public class OmniTooltip {
             renderContent(context, textRenderer, x, y + yOffset);
         }
 
-        context.getMatrices().pop();
+        context.getMatrices().popMatrix();
     }
 
     private void renderScrollableContent(DrawContext context, TextRenderer textRenderer, int x, int y, int width, int height) {
@@ -190,17 +189,11 @@ public class OmniTooltip {
 
     private void drawBackground(DrawContext context, int x, int y, int width, int height) {
         if (backgroundTexture != null) {
-            context.drawTexture(
-                    RenderLayer::getGuiTextured,
+            context.drawGuiTexture(
+                    RenderPipelines.GUI_TEXTURED,
                     backgroundTexture,
                     x - padding,
                     y - padding,
-                    0,
-                    0,
-                    width + padding * 2,
-                    height + padding * 2,
-                    width + padding * 2,
-                    height + padding * 2,
                     width + padding * 2,
                     height + padding * 2
             );
@@ -210,15 +203,11 @@ public class OmniTooltip {
     }
 
     private void drawCustomIcon(DrawContext context, int x, int y) {
-        context.drawTexture(
-                RenderLayer::getGuiTextured,
+        context.drawGuiTexture(
+                RenderPipelines.GUI_TEXTURED,
                 customIconTexture,
                 x,
                 y,
-                0,
-                0,
-                customIconWidth,
-                customIconHeight,
                 customIconWidth,
                 customIconHeight
         );

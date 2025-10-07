@@ -2,22 +2,21 @@ package com.dooji.craftsense.omnilib;
 
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.toast.Toast;
+import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.toast.ToastManager;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 public class OmniToast implements Toast {
-
     private static final Identifier DEFAULT_BACKGROUND_TEXTURE = Identifier.of("omnilib", "textures/gui/toast.png");
     private static final Identifier DEFAULT_ICON_TEXTURE = Identifier.of("minecraft", "icon.png");
     private static final int DEFAULT_ICON_SIZE = 16;
     private static final int DEFAULT_TEXTURE_WIDTH = 160;
     private static final int DEFAULT_TEXTURE_HEIGHT = 32;
     private static final long DEFAULT_DURATION = 5000;
-    private static final int DEFAULT_TITLE_COLOR = 0xFFFFFF;
+    private static final int DEFAULT_TITLE_COLOR = 0xFFFFFFFF;
     private static final int DEFAULT_DESCRIPTION_COLOR = 0xAAAAAA;
 
     private final Identifier backgroundTexture;
@@ -90,12 +89,12 @@ public class OmniToast implements Toast {
     @Override
     public void draw(DrawContext drawContext, TextRenderer textRenderer, long currentTime) {
         updateWidth();
-        drawContext.drawTexture(RenderLayer::getGuiTextured, backgroundTexture, 0, 0, 0, 0, getWidth(), getHeight(), textureWidth, textureHeight);
+        drawContext.drawGuiTexture(RenderPipelines.GUI_TEXTURED, backgroundTexture, 0, 0, getWidth(), getHeight());
 
         if (iconItemStack != null) {
             drawContext.drawItem(iconItemStack, 10, (textureHeight - iconSize) / 2);
         } else {
-            drawContext.drawTexture(RenderLayer::getGuiTextured, iconTexture, 10, (textureHeight - iconSize) / 2, 0, 0, iconSize, iconSize, iconSize, iconSize);
+            drawContext.drawGuiTexture(RenderPipelines.GUI_TEXTURED, iconTexture, 10, (textureHeight - iconSize) / 2, iconSize, iconSize);
         }
 
         drawContext.drawText(textRenderer, this.title, 38, 7, this.titleColor, false);

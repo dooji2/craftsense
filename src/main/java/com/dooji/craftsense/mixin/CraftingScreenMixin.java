@@ -16,9 +16,6 @@ import net.minecraft.client.gui.screen.ingame.CraftingScreen;
 import net.minecraft.client.gui.screen.recipebook.RecipeBookWidget;
 import net.minecraft.client.gui.tooltip.TooltipPositioner;
 import net.minecraft.client.gui.screen.ingame.RecipeBookScreen;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.RecipeInputInventory;
@@ -41,7 +38,6 @@ import net.minecraft.util.context.ContextParameterMap;
 import net.minecraft.util.context.ContextType;
 import net.minecraft.world.World;
 
-import org.joml.Matrix4f;
 import org.joml.Vector2i;
 import org.lwjgl.opengl.GL11;
 
@@ -95,7 +91,7 @@ public abstract class CraftingScreenMixin {
     @Unique
     private long lastKeyPressTime = 0;
 
-    @Inject(method = "render", at = @At("TAIL"))
+    @Inject(method = "render", at = @At("HEAD"))
     private void renderCraftingPrediction(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen craftingScreen) || !CraftSense.configManager.isEnabled() || this.recipeBook.isOpen()) {
             return;
@@ -410,8 +406,7 @@ public abstract class CraftingScreenMixin {
 
     @Unique
     private void renderGhostItem(DrawContext context, ItemStack stack, int x, int y, float opacity, int mouseX, int mouseY, boolean isLastCrafted) {
-        context.getMatrices().push();
-        context.getMatrices().translate(0, 0, -100);
+        context.getMatrices().pushMatrix();
 
         GlStateManager._enableBlend();
         GlStateManager._blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
@@ -430,23 +425,14 @@ public abstract class CraftingScreenMixin {
         }
 
         GlStateManager._disableBlend();
-        context.getMatrices().pop();
+        context.getMatrices().popMatrix();
     }
 
     @Unique
     private void drawTransparentRectangle(DrawContext context, int x1, int y1, int x2, int y2, int z, float alpha) {
-        Matrix4f matrix = context.getMatrices().peek().getPositionMatrix();
-        VertexConsumerProvider.Immediate vertexConsumers = ((DrawContextAccessor) context).getVertexConsumers();
-        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayer.getGui());
-
-        int color = (int)(alpha * 255) << 24 | 0xFFFFFF;
-
-        vertexConsumer.vertex(matrix, x1, y1, z).color(color);
-        vertexConsumer.vertex(matrix, x1, y2, z).color(color);
-        vertexConsumer.vertex(matrix, x2, y2, z).color(color);
-        vertexConsumer.vertex(matrix, x2, y1, z).color(color);
-
-        context.draw();
+        int a = Math.round(Math.max(0f, Math.min(1f, alpha)) * 255f) << 24;
+        int argb = a | 0xFFFFFF;
+        context.fill(x1, y1, x2, y2, argb);
     }
 
     @Unique
@@ -522,6 +508,6 @@ public abstract class CraftingScreenMixin {
         }
 
         TooltipPositioner fixedPositioner = (screenWidth, screenHeight, tooltipX, tooltipY, tooltipWidth, tooltipHeight) -> new Vector2i(tooltipX, tooltipY);
-        context.drawTooltip(MinecraftClient.getInstance().textRenderer, tooltip, fixedPositioner, x + 30, y - 7);
+        context.drawTooltip(MinecraftClient.getInstance().textRenderer, tooltip, fixedPositioner, x + 30, y - 7, false);
     }
 }
