@@ -44,7 +44,7 @@ public class CraftSenseNetworking {
         ServerPlayNetworking.registerGlobalReceiver(RecipesRequestPayload.ID, (payload, context) -> {
             context.server().execute(() -> {
                 ServerPlayerEntity player = context.player();
-                RecipeManager recipeManager = player.getServer().getRecipeManager();
+                RecipeManager recipeManager = player.getEntityWorld().getServer().getRecipeManager();
                 List<RecipeEntry<?>> recipes = ((ServerRecipeManager) recipeManager).values().stream().collect(Collectors.toList());
                 Map<RegistryKey<Recipe<?>>, List<ServerRecipeManager.ServerRecipe>> recipesByKey = ((RecipeManagerAccessor) recipeManager).getRecipesByKey();
 
@@ -54,7 +54,7 @@ public class CraftSenseNetworking {
     }
 
     private static void handleCraftItemPayload(String recipeIdStr, Boolean isShiftPressed, ServerPlayerEntity player) {
-        RecipeManager recipeManager = player.getServer().getRecipeManager();
+        RecipeManager recipeManager = player.getEntityWorld().getServer().getRecipeManager();
         Identifier recipeId = Identifier.of(recipeIdStr);
         Optional<RecipeEntry<?>> recipeEntryOptional = ((ServerRecipeManager) recipeManager).values().stream()
                 .filter(entry -> entry.id().getValue().equals(recipeId))

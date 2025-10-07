@@ -20,8 +20,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class CraftingEventMixin {
     @Inject(method = "onCraftByPlayer", at = @At("HEAD"))
     private void onCraft(ItemStack stack, PlayerEntity player, CallbackInfo ci) {
-        World world = player.getWorld();
-        if (!world.isClient && player instanceof ServerPlayerEntity serverPlayer && serverPlayer.currentScreenHandler instanceof CraftingScreenHandler) {
+        World world = player.getEntityWorld();
+        if (!world.isClient() && player instanceof ServerPlayerEntity serverPlayer && serverPlayer.currentScreenHandler instanceof CraftingScreenHandler) {
             RecordCraftPayload payload = new RecordCraftPayload(stack.copy());
             ServerPlayNetworking.send(serverPlayer, payload);
         }

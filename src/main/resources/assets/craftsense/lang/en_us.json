@@ -2,7 +2,7 @@
   "key.craftsense.toggle": "Toggle CraftSense",
   "key.craftsense.open_stats": "Open CraftSense Statistics",
   "key.craftsense.quick_craft": "Quick Craft Key",
-  "category.craftsense": "CraftSense",
+  "key.category.minecraft.category.craftsense": "CraftSense",
   "screen.craftsense.stats": "CraftSense Statistics",
   "screen.craftsense.stats.done": "Done",
   "screen.craftsense.no_history": "No crafting history has been recorded yet.",

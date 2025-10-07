@@ -11,10 +11,12 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ingame.CraftingScreen;
 import net.minecraft.client.gui.screen.recipebook.RecipeBookWidget;
 import net.minecraft.client.gui.tooltip.TooltipPositioner;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.gui.screen.ingame.RecipeBookScreen;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.player.PlayerInventory;
@@ -155,8 +157,8 @@ public abstract class CraftingScreenMixin {
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
-    private void onSuggestedRecipeClick(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
-        boolean isShiftPressed = InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow().getHandle(), InputUtil.GLFW_KEY_LEFT_SHIFT);
+    private void onSuggestedRecipeClick(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
+        boolean isShiftPressed = InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow(), InputUtil.GLFW_KEY_LEFT_SHIFT);
 
         if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen craftingScreen) || !CraftSense.configManager.isEnabled() || this.recipeBook.isOpen()) {
             return;
@@ -176,7 +178,7 @@ public abstract class CraftingScreenMixin {
         CraftingScreenHandler handler = craftingScreen.getScreenHandler();
         ItemStack cursorStack = handler.getCursorStack();
 
-        if (isMouseOverSlot((int) mouseX, (int) mouseY, resultSlotX, resultSlotY)) {
+        if (isMouseOverSlot((int) click.x(), (int) click.y(), resultSlotX, resultSlotY)) {
             if (showFirstTimeTooltips) {
                 progress++;
                 if (progress >= 2) {
@@ -219,7 +221,7 @@ public abstract class CraftingScreenMixin {
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-    private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
+    private void onKeyPressed(KeyInput keyInput, CallbackInfoReturnable<Boolean> cir) {
         if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen) || !CraftSense.configManager.isEnabled() || this.recipeBook.isOpen()) {
             return;
         }
@@ -234,7 +236,7 @@ public abstract class CraftingScreenMixin {
 
         lastKeyPressTime = currentTime;
 
-        if (CraftSenseKeyBindings.quickCraftKey.matchesKey(keyCode, scanCode)) {
+        if (CraftSenseKeyBindings.quickCraftKey.matchesKey(new KeyInput(keyInput.getKeycode(), keyInput.scancode(), keyInput.modifiers()))) {
             MinecraftClient client = MinecraftClient.getInstance();
 
             if (client.player != null && client.world != null) {

@@ -8,8 +8,10 @@ import com.dooji.craftsense.omnilib.OmniButton;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.item.Item;
@@ -269,8 +271,11 @@ public class CraftSenseStatsScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        super.mouseClicked(mouseX, mouseY, button);
+    public boolean mouseClicked(Click click, boolean doubled) {
+        super.mouseClicked(click, doubled);
+
+        double mouseX = click.x();
+        double mouseY = click.y();
 
         int catsPerPage = 8;
         int startIndex = legendPage * catsPerPage;
@@ -575,13 +580,13 @@ public class CraftSenseStatsScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == 256) {
+    public boolean keyPressed(KeyInput input) {
+        if (input.getKeycode() == 256) {
             this.close();
             return true;
         }
 
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(input);
     }
 
     private static void renderScrollableText(DrawContext context, TextRenderer textRenderer, Text text, int startX, int startY, int endX, int endY, int color) {
