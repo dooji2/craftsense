@@ -189,11 +189,17 @@ public class OmniTooltip {
 
     private void drawBackground(DrawContext context, int x, int y, int width, int height) {
         if (backgroundTexture != null) {
-            context.drawGuiTexture(
+            context.drawTexture(
                     RenderPipelines.GUI_TEXTURED,
                     backgroundTexture,
                     x - padding,
                     y - padding,
+                    0,
+                    0,
+                    width + padding * 2,
+                    height + padding * 2,
+                    width + padding * 2,
+                    height + padding * 2,
                     width + padding * 2,
                     height + padding * 2
             );
@@ -203,11 +209,15 @@ public class OmniTooltip {
     }
 
     private void drawCustomIcon(DrawContext context, int x, int y) {
-        context.drawGuiTexture(
+        context.drawTexture(
                 RenderPipelines.GUI_TEXTURED,
                 customIconTexture,
                 x,
                 y,
+                0,
+                0,
+                customIconWidth,
+                customIconHeight,
                 customIconWidth,
                 customIconHeight
         );

@@ -89,12 +89,12 @@ public class OmniToast implements Toast {
     @Override
     public void draw(DrawContext drawContext, TextRenderer textRenderer, long currentTime) {
         updateWidth();
-        drawContext.drawGuiTexture(RenderPipelines.GUI_TEXTURED, backgroundTexture, 0, 0, getWidth(), getHeight());
+        drawContext.drawTexture(RenderPipelines.GUI_TEXTURED, backgroundTexture, 0, 0, 0, 0, getWidth(), getHeight(), textureWidth, textureHeight);
 
         if (iconItemStack != null) {
             drawContext.drawItem(iconItemStack, 10, (textureHeight - iconSize) / 2);
         } else {
-            drawContext.drawGuiTexture(RenderPipelines.GUI_TEXTURED, iconTexture, 10, (textureHeight - iconSize) / 2, iconSize, iconSize);
+            drawContext.drawTexture(RenderPipelines.GUI_TEXTURED, iconTexture, 10, (textureHeight - iconSize) / 2, 0, 0, iconSize, iconSize, iconSize, iconSize);
         }
 
         drawContext.drawText(textRenderer, this.title, 38, 7, this.titleColor, false);

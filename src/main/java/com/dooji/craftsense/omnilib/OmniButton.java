@@ -92,7 +92,7 @@ public class OmniButton extends ClickableWidget {
             int iconX = this.getX() + (this.width - iconSize) / 2;
             int iconY = this.getY() + (this.height - iconSize) / 2;
 
-            context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, currentTexture, iconX, iconY, iconSize, iconSize);
+            context.drawTexture(RenderPipelines.GUI_TEXTURED, currentTexture, iconX, iconY, 0, 0, iconSize, iconSize, iconSize, iconSize);
         }
     }
 
