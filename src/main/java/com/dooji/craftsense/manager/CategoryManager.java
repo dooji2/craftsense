@@ -2,8 +2,8 @@ package com.dooji.craftsense.manager;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import net.minecraft.item.Item;
-import net.minecraft.registry.Registries;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.item.Item;
 
 import java.io.FileReader;
 import java.nio.file.Files;
@@ -35,7 +35,7 @@ public class CategoryManager {
     }
 
     public static String getCategory(Item item) {
-        String itemName = Registries.ITEM.getId(item).getPath().toUpperCase();
+        String itemName = BuiltInRegistries.ITEM.getKey(item).getPath().toUpperCase();
         for (Map.Entry<String, List<String>> entry : categoryMap.entrySet()) {
             if (entry.getValue().contains(itemName)) {
                 return entry.getKey();

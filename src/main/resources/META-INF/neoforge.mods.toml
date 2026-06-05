@@ -1,0 +1,29 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="GPL-v3"
+
+[[mods]]
+    modId="craftsense"
+    version="${file.jarVersion}"
+    displayName="CraftSense"
+    description="""
+        A Minecraft mod that predicts crafting recipes in real-time, offering previews based on
+        items in the crafting grid and adapting to your crafting habits over time.
+    """
+
+    [[dependencies.craftsense]]
+        modId="neoforge"
+        type="required"
+        versionRange="[21.1,)"
+        ordering="NONE"
+        side="BOTH"
+
+    [[dependencies.craftsense]]
+        modId="minecraft"
+        type="required"
+        versionRange="[1.21.1,1.22)"
+        ordering="NONE"
+        side="BOTH"
+
+[[mixins]]
+    config="craftsense.mixins.json"

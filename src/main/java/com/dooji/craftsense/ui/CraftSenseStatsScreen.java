@@ -5,18 +5,17 @@ import com.dooji.craftsense.manager.CategoryHabitsTracker;
 import com.dooji.craftsense.manager.CategoryManager;
 import com.dooji.craftsense.omnilib.OmniButton;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.texture.NativeImage;
-import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.RotationAxis;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+
+import com.mojang.blaze3d.platform.NativeImage;
 
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
@@ -35,8 +34,8 @@ public class CraftSenseStatsScreen extends Screen {
     private final Map<String, Integer> categoryColors = new HashMap<>();
 
     private NativeImage pieImage;
-    private NativeImageBackedTexture pieTexture;
-    private Identifier pieTextureId;
+    private DynamicTexture pieTexture;
+    private ResourceLocation pieTextureId;
     private int pieTextureWidth, pieTextureHeight;
     private boolean pieNeedsUpdate = true;
 
@@ -45,7 +44,7 @@ public class CraftSenseStatsScreen extends Screen {
     private int legendPages = 1;
 
     public CraftSenseStatsScreen() {
-        super(Text.translatable("screen.craftsense.stats"));
+        super(Component.translatable("screen.craftsense.stats"));
 
         categoryTotals = new LinkedHashMap<>();
         tracker.categoryCraftCount.entrySet()
@@ -62,9 +61,9 @@ public class CraftSenseStatsScreen extends Screen {
             List<Map.Entry<String, Integer>> items = new ArrayList<>();
 
             for (Map.Entry<String, Integer> entry : tracker.itemCraftCount.entrySet()) {
-                String translationKey = entry.getKey();
-                Optional<Item> optionalItem = Registries.ITEM.stream()
-                        .filter(item -> item.getTranslationKey().equals(translationKey))
+                String descriptionId = entry.getKey();
+                Optional<Item> optionalItem = BuiltInRegistries.ITEM.stream()
+                        .filter(item -> item.getDescriptionId().equals(descriptionId))
                         .findFirst();
 
                 if (optionalItem.isPresent() && category.equals(CategoryManager.getCategory(optionalItem.get()))) {
@@ -84,48 +83,23 @@ public class CraftSenseStatsScreen extends Screen {
         recalculateStats();
 
         closeButton = CraftSenseClient.createOmniButton(
-                this.width / 2 - 40,
-                this.height - 40,
-                80,
-                20,
-                Text.translatable("screen.craftsense.stats.done"),
+                this.width / 2 - 40, this.height - 40, 80, 20,
+                Component.translatable("screen.craftsense.stats.done"),
                 0x99000000, 0xBB000000, 0xFFFFFFFF, 0xFFEFEFEF,
-                this::close
+                this::onClose
         );
-        this.addDrawableChild(closeButton);
+        this.addRenderableWidget(closeButton);
 
         if (!categoryTotals.isEmpty()) {
-            legendPrevBtn = CraftSenseClient.createOmniButton(
-                    0,
-                    0,
-                    20,
-                    20,
-                    Text.literal("<"),
-                    0x99000000,
-                    0xBB000000,
-                    0xFFFFFFFF,
-                    0xFFEFEFEF,
-                    () -> {
-                        if (legendPage > 0) legendPage--;
-                    }
-            );
-            this.addDrawableChild(legendPrevBtn);
+            legendPrevBtn = CraftSenseClient.createOmniButton(0, 0, 20, 20,
+                    Component.literal("<"), 0x99000000, 0xBB000000, 0xFFFFFFFF, 0xFFEFEFEF,
+                    () -> { if (legendPage > 0) legendPage--; });
+            this.addRenderableWidget(legendPrevBtn);
 
-            legendNextBtn = CraftSenseClient.createOmniButton(
-                    0,
-                    0,
-                    20,
-                    20,
-                    Text.literal(">"),
-                    0x99000000,
-                    0xBB000000,
-                    0xFFFFFFFF,
-                    0xFFEFEFEF,
-                    () -> {
-                        if (legendPage < legendPages - 1) legendPage++;
-                    }
-            );
-            this.addDrawableChild(legendNextBtn);
+            legendNextBtn = CraftSenseClient.createOmniButton(0, 0, 20, 20,
+                    Component.literal(">"), 0x99000000, 0xBB000000, 0xFFFFFFFF, 0xFFEFEFEF,
+                    () -> { if (legendPage < legendPages - 1) legendPage++; });
+            this.addRenderableWidget(legendNextBtn);
         }
     }
 
@@ -141,9 +115,9 @@ public class CraftSenseStatsScreen extends Screen {
             List<Map.Entry<String, Integer>> items = new ArrayList<>();
 
             for (Map.Entry<String, Integer> entry : tracker.itemCraftCount.entrySet()) {
-                String translationKey = entry.getKey();
-                Optional<Item> optionalItem = Registries.ITEM.stream()
-                        .filter(item -> item.getTranslationKey().equals(translationKey))
+                String descriptionId = entry.getKey();
+                Optional<Item> optionalItem = BuiltInRegistries.ITEM.stream()
+                        .filter(item -> item.getDescriptionId().equals(descriptionId))
                         .findFirst();
 
                 if (optionalItem.isPresent() && category.equals(CategoryManager.getCategory(optionalItem.get()))) {
@@ -152,7 +126,6 @@ public class CraftSenseStatsScreen extends Screen {
             }
 
             items.sort((e1, e2) -> Integer.compare(e2.getValue(), e1.getValue()));
-
             categoryItemsMap.put(category, items);
         }
 
@@ -172,9 +145,9 @@ public class CraftSenseStatsScreen extends Screen {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 15, 0xFFFFFF);
+        context.drawCenteredString(this.font, this.title, this.width / 2, 15, 0xFFFFFF);
 
         if (pieNeedsUpdate) {
             generatePieTexture();
@@ -184,24 +157,23 @@ public class CraftSenseStatsScreen extends Screen {
         int titleBottom = 30;
         int doneButtonTop = this.height - 40;
         int areaHeight = doneButtonTop - titleBottom;
-
         int areaCenterY = titleBottom + areaHeight / 2;
 
         renderPieChart(context, mouseX, mouseY, areaCenterY);
         renderLegend(context, areaCenterY);
 
         if (categoryTotals.isEmpty()) {
-            context.drawCenteredTextWithShadow(this.textRenderer, Text.translatable("screen.craftsense.no_history"), this.width / 2, areaCenterY, 0xAAAAAA);
+            context.drawCenteredString(this.font, Component.translatable("screen.craftsense.no_history"), this.width / 2, areaCenterY, 0xAAAAAA);
         }
     }
 
-    private void renderPieChart(DrawContext context, int mouseX, int mouseY, int areaCenterY) {
+    private void renderPieChart(GuiGraphics context, int mouseX, int mouseY, int areaCenterY) {
         if (pieTexture == null) return;
 
         int drawY = areaCenterY - pieTextureHeight / 2;
         int totalWidth = pieTextureWidth + 100;
         int cx = (this.width - totalWidth) / 2;
-        context.drawTexture(pieTextureId, cx, drawY, 0, 0, pieTextureWidth, pieTextureHeight, pieTextureWidth, pieTextureHeight);
+        context.blit(pieTextureId, cx, drawY, 0, 0, pieTextureWidth, pieTextureHeight, pieTextureWidth, pieTextureHeight);
 
         int radius = Math.min(100, (pieTextureHeight - 40) / 2);
         int centerX = cx + (radius + 20);
@@ -209,10 +181,8 @@ public class CraftSenseStatsScreen extends Screen {
         handlePieHover(context, mouseX, mouseY, centerX, centerY, radius);
     }
 
-    private void renderLegend(DrawContext context, int areaCenterY) {
-        if (categoryTotals.isEmpty()) {
-            return;
-        }
+    private void renderLegend(GuiGraphics context, int areaCenterY) {
+        if (categoryTotals.isEmpty()) return;
 
         int catsPerPage = 8;
         int startIndex = legendPage * catsPerPage;
@@ -227,9 +197,7 @@ public class CraftSenseStatsScreen extends Screen {
         int legendBoxHeight = 12 * catsPerPage;
         int paginationHeight = 20;
         int totalLegendHeight = legendBoxHeight + paginationHeight + 5;
-
         int legendTop = areaCenterY - (totalLegendHeight / 2) + paginationHeight + 5;
-
         int paginationY = legendTop - paginationHeight - 5;
 
         legendPrevBtn.setX(cx);
@@ -238,7 +206,7 @@ public class CraftSenseStatsScreen extends Screen {
         legendNextBtn.setY(paginationY);
 
         int midX = cx + legendWidth / 2;
-        context.drawCenteredTextWithShadow(this.textRenderer, pageText, midX, paginationY + 5, 0xFFFFFF);
+        context.drawCenteredString(this.font, pageText, midX, paginationY + 5, 0xFFFFFF);
 
         for (int i = startIndex; i < endIndex; i++) {
             String category = visibleCategories.get(i);
@@ -250,19 +218,15 @@ public class CraftSenseStatsScreen extends Screen {
             }
 
             int lineY = legendTop + (i - startIndex) * 12;
-
             context.fill(cx, lineY, cx + 10, lineY + 10, color);
 
             String displayStr = category.substring(0, 1).toUpperCase() + category.substring(1).toLowerCase();
-            Text display = hidden ? Text.literal(displayStr).styled(style -> style.withItalic(true).withColor(0xFFAAAAAA)) : Text.literal(displayStr).styled(style -> style.withColor(0xFFFFFFFF));
+            Component display = hidden
+                    ? Component.literal(displayStr).withStyle(style -> style.withItalic(true).withColor(0xFFAAAAAA))
+                    : Component.literal(displayStr).withStyle(style -> style.withColor(0xFFFFFFFF));
 
-            int textStartX = cx + 12;
-            int textEndX = cx + legendWidth;
-            int textStartY = lineY + 2;
-            int textEndY = lineY + 12;
-
-            context.enableScissor(textStartX, textStartY, textEndX, textEndY);
-            renderScrollableText(context, this.textRenderer, display, textStartX, textStartY, textEndX, textEndY, 0xFFFFFF);
+            context.enableScissor(cx + 12, lineY + 2, cx + legendWidth, lineY + 12);
+            renderScrollableText(context, this.font, display, cx + 12, lineY + 2, cx + legendWidth, lineY + 12, 0xFFFFFF);
             context.disableScissor();
         }
     }
@@ -282,7 +246,6 @@ public class CraftSenseStatsScreen extends Screen {
         int legendBoxHeight = 12 * catsPerPage;
         int paginationHeight = 20;
         int totalLegendHeight = legendBoxHeight + paginationHeight + 5;
-
         int legendTop = (this.height - totalLegendHeight) / 2 + paginationHeight + 5;
 
         for (int i = startIndex; i < endIndex; i++) {
@@ -290,7 +253,6 @@ public class CraftSenseStatsScreen extends Screen {
 
             if (mouseX >= cx && mouseX < cx + legendWidth && mouseY >= lineY && mouseY < lineY + 10) {
                 String category = visibleCategories.get(i);
-
                 if (hiddenCategories.contains(category)) hiddenCategories.remove(category);
                 else hiddenCategories.add(category);
 
@@ -308,21 +270,14 @@ public class CraftSenseStatsScreen extends Screen {
 
     private int generateColorFromString(String str) {
         int hash = str.hashCode();
-
         float hue = (Math.abs(hash) % 360) / 360.0f;
-
-        float saturation = 0.7f;
-        float brightness = 0.9f;
-
-        int rgb = Color.HSBtoRGB(hue, saturation, brightness);
-
+        int rgb = Color.HSBtoRGB(hue, 0.7f, 0.9f);
         return 0xFF000000 | (rgb & 0x00FFFFFF);
     }
 
     private void generatePieTexture() {
         if (pieTexture != null) {
-            MinecraftClient.getInstance().getTextureManager().destroyTexture(pieTextureId);
-
+            Minecraft.getInstance().getTextureManager().release(pieTextureId);
             pieTexture.close();
             pieTexture = null;
         }
@@ -338,14 +293,12 @@ public class CraftSenseStatsScreen extends Screen {
         Matrix4f transform = new Matrix4f()
                 .identity()
                 .translate(radius + margin, radius + margin, 0)
-                .rotate(RotationAxis.POSITIVE_X.rotationDegrees(45f))
+                .rotate(new org.joml.AxisAngle4f((float) Math.toRadians(45f), 1, 0, 0))
                 .translate(-(radius + margin), -(radius + margin), 0);
 
         int total = 0;
         for (var e : categoryTotals.entrySet()) {
-            if (!hiddenCategories.contains(e.getKey())) {
-                total += e.getValue();
-            }
+            if (!hiddenCategories.contains(e.getKey())) total += e.getValue();
         }
 
         List<SliceInfo> slices = new ArrayList<>();
@@ -353,7 +306,6 @@ public class CraftSenseStatsScreen extends Screen {
 
         for (var e : categoryTotals.entrySet()) {
             if (hiddenCategories.contains(e.getKey())) continue;
-
             float fraction = (total == 0) ? 0 : (e.getValue() / (float) total);
             float angle = 360f * fraction;
             slices.add(new SliceInfo(e.getKey(), accumulatedAngle, accumulatedAngle + angle));
@@ -361,30 +313,19 @@ public class CraftSenseStatsScreen extends Screen {
         }
 
         if (slices.size() == 1) {
-            SliceInfo singleSlice = slices.getFirst();
-            int color = getCategoryColor(singleSlice.category);
-
-            fillCircleWithThickness(pieImage, radius + margin, radius + margin, radius, color, transform, 6);
+            fillCircleWithThickness(pieImage, radius + margin, radius + margin, radius, getCategoryColor(slices.getFirst().category), transform, 6);
         } else {
             int thickness = 6;
-
             int centerX = radius + margin;
             int centerY = radius + margin;
 
-            int minX = centerX - radius;
-            int maxX = centerX + radius;
-            int minY = centerY - radius;
-            int maxY = centerY + radius;
-
-            for (int px = minX; px <= maxX; px++) {
+            for (int px = centerX - radius; px <= centerX + radius; px++) {
                 float dx = px - centerX;
-
-                for (int py = minY; py <= maxY; py++) {
+                for (int py = centerY - radius; py <= centerY + radius; py++) {
                     float dy = py - centerY;
 
                     if (dx * dx + dy * dy <= radius * radius) {
                         float angle = (float) Math.toDegrees(Math.atan2(dy, dx));
-
                         if (angle < 0) angle += 360f;
 
                         int colorArgb = 0x00000000;
@@ -396,23 +337,21 @@ public class CraftSenseStatsScreen extends Screen {
                         }
 
                         if (colorArgb == 0x00000000) continue;
-                        int color = (colorArgb & 0xFF00FF00) | ((colorArgb & 0x00FF0000) >> 16) | ((colorArgb & 0x000000FF) << 16);
+                        int color = abgrFromArgb(colorArgb);
 
                         Vector4f pos = new Vector4f(px, py, 0, 1).mul(transform);
                         int rx = (int) pos.x;
                         int ry = (int) pos.y;
 
                         if (rx >= 0 && rx < pieImage.getWidth() && ry >= 0 && ry < pieImage.getHeight()) {
-                            pieImage.setColor(rx, ry, color);
+                            pieImage.setPixelRGBA(rx, ry, color);
                         }
 
-                        int darkColor = darken(colorArgb, 0.5f);
-                        color = (darkColor & 0xFF00FF00) | ((darkColor & 0x00FF0000) >> 16) | ((darkColor & 0x000000FF) << 16);
-
+                        int darkColor = abgrFromArgb(darken(colorArgb, 0.5f));
                         for (int t = 1; t <= thickness; t++) {
                             int wallY = ry + t;
                             if (wallY >= 0 && wallY < pieImage.getHeight()) {
-                                pieImage.setColor(rx, wallY, color);
+                                pieImage.setPixelRGBA(rx, wallY, darkColor);
                             }
                         }
                     }
@@ -420,39 +359,39 @@ public class CraftSenseStatsScreen extends Screen {
             }
         }
 
-        pieTexture = new NativeImageBackedTexture(pieImage);
-        pieTextureId = MinecraftClient.getInstance().getTextureManager().registerDynamicTexture("craftsense_pie", pieTexture);
+        pieTextureId = ResourceLocation.fromNamespaceAndPath("craftsense", "craftsense_pie");
+        pieTexture = new DynamicTexture(pieImage);
+        Minecraft.getInstance().getTextureManager().register(pieTextureId, pieTexture);
+    }
+
+    private int abgrFromArgb(int argb) {
+        int a = (argb >>> 24) & 0xFF;
+        int r = (argb >>> 16) & 0xFF;
+        int g = (argb >>> 8)  & 0xFF;
+        int b = argb & 0xFF;
+        return (a << 24) | (b << 16) | (g << 8) | r;
     }
 
     private void fillCircleWithThickness(NativeImage image, int centerX, int centerY, int radius, int colorArgb, Matrix4f transform, int thickness) {
-        int minX = centerX - radius;
-        int maxX = centerX + radius;
-        int minY = centerY - radius;
-        int maxY = centerY + radius;
-
-        for (int px = minX; px <= maxX; px++) {
+        for (int px = centerX - radius; px <= centerX + radius; px++) {
             float dx = px - centerX;
-
-            for (int py = minY; py <= maxY; py++) {
+            for (int py = centerY - radius; py <= centerY + radius; py++) {
                 float dy = py - centerY;
-
                 if (dx * dx + dy * dy <= radius * radius) {
                     Vector4f pos = new Vector4f(px, py, 0, 1).mul(transform);
                     int rx = (int) pos.x;
                     int ry = (int) pos.y;
 
-                    int color = (colorArgb & 0xFF00FF00) | ((colorArgb & 0x00FF0000) >> 16) | ((colorArgb & 0x000000FF) << 16);
-
+                    int color = abgrFromArgb(colorArgb);
                     if (rx >= 0 && rx < image.getWidth() && ry >= 0 && ry < image.getHeight()) {
-                        image.setColor(rx, ry, color);
+                        image.setPixelRGBA(rx, ry, color);
                     }
 
-                    int darkColor = darken(colorArgb, 0.5f);
-                    color = (darkColor & 0xFF00FF00) | ((darkColor & 0x00FF0000) >> 16) | ((darkColor & 0x000000FF) << 16);
+                    int darkColor = abgrFromArgb(darken(colorArgb, 0.5f));
                     for (int t = 1; t <= thickness; t++) {
                         int wallY = ry + t;
                         if (wallY >= 0 && wallY < image.getHeight()) {
-                            image.setColor(rx, wallY, color);
+                            image.setPixelRGBA(rx, wallY, darkColor);
                         }
                     }
                 }
@@ -475,15 +414,11 @@ public class CraftSenseStatsScreen extends Screen {
         int a = (color >>> 24) & 0xFF;
         int r = (color >>> 16) & 0xFF;
         int g = (color >>> 8)  & 0xFF;
-        int b = (color)        & 0xFF;
-        r = (int)(r * factor);
-        g = (int)(g * factor);
-        b = (int)(b * factor);
-
-        return (a << 24) | (r << 16) | (g << 8) | b;
+        int b = color & 0xFF;
+        return (a << 24) | ((int)(r * factor) << 16) | ((int)(g * factor) << 8) | (int)(b * factor);
     }
 
-    private void handlePieHover(DrawContext context, int mouseX, int mouseY, int cx, int cy, int radius) {
+    private void handlePieHover(GuiGraphics context, int mouseX, int mouseY, int cx, int cy, int radius) {
         float dx = mouseX - cx;
         float dy = mouseY - cy;
 
@@ -494,16 +429,13 @@ public class CraftSenseStatsScreen extends Screen {
                     .toList();
 
             if (visibleSlices.size() == 1) {
-                String category = visibleSlices.getFirst().getKey();
-                showTooltipForCategory(context, category, mouseX, mouseY);
+                showTooltipForCategory(context, visibleSlices.getFirst().getKey(), mouseX, mouseY);
             } else {
                 float angle = (float) Math.toDegrees(Math.atan2(dy, dx));
-
                 if (angle < 0) angle += 360;
 
                 int total = 0;
                 List<Map.Entry<String, Integer>> slices = new ArrayList<>();
-
                 for (var e : categoryTotals.entrySet()) {
                     if (!hiddenCategories.contains(e.getKey())) {
                         total += e.getValue();
@@ -515,108 +447,81 @@ public class CraftSenseStatsScreen extends Screen {
                 for (var slice : slices) {
                     float fraction = total == 0 ? 0 : (slice.getValue() / (float) total);
                     float sliceAngle = 360 * fraction;
-                    float start = accum;
-                    float end = accum + sliceAngle;
-
-                    if (isAngleInSlice(angle, start, end)) {
-                        String category = slice.getKey();
-                        showTooltipForCategory(context, category, mouseX, mouseY);
+                    if (isAngleInSlice(angle, accum, accum + sliceAngle)) {
+                        showTooltipForCategory(context, slice.getKey(), mouseX, mouseY);
                         break;
                     }
-
                     accum += sliceAngle;
                 }
             }
         }
     }
 
-    private void showTooltipForCategory(DrawContext context, String category, int mouseX, int mouseY) {
+    private void showTooltipForCategory(GuiGraphics context, String category, int mouseX, int mouseY) {
         var items = categoryItemsMap.getOrDefault(category, List.of());
 
         List<ItemStack> stacks = new ArrayList<>();
-        List<Text> lines = new ArrayList<>();
+        List<Component> lines = new ArrayList<>();
 
         for (var itE : items) {
-            Registries.ITEM.stream()
-                    .filter(it -> it.getTranslationKey().equals(itE.getKey()))
+            BuiltInRegistries.ITEM.stream()
+                    .filter(it -> it.getDescriptionId().equals(itE.getKey()))
                     .findFirst()
                     .ifPresent(it -> {
-                        stacks.add(it.getDefaultStack());
-                        lines.add(Text.literal(it.getName().getString() + " - " + formatNumberShorthand(itE.getValue())));
+                        stacks.add(it.getDefaultInstance());
+                        lines.add(Component.literal(it.getName(it.getDefaultInstance()).getString() + " - " + formatNumberShorthand(itE.getValue())));
                     });
         }
 
-        CraftSenseClient.showTooltip(
-                context,
-                this.textRenderer,
-                category,
-                stacks,
-                lines.isEmpty()
-                        ? List.of(Text.translatable("tooltip.craftsense.no_items_found"))
-                        : lines,
-                0x99000000,
-                null,
-                0xFFFFFF,
-                null,
-                mouseX + 10,
-                mouseY + 10
-        );
+        CraftSenseClient.showTooltip(context, this.font, category, stacks,
+                lines.isEmpty() ? List.of(Component.translatable("tooltip.craftsense.no_items_found")) : lines,
+                0x99000000, null, 0xFFFFFF, null, mouseX + 10, mouseY + 10);
     }
 
     private String formatNumberShorthand(int number) {
-        if (number >= 1_000_000_000) {
-            return String.format("%.1fB", number / 1_000_000_000.0);
-        } else if (number >= 1_000_000) {
-            return String.format("%.1fM", number / 1_000_000.0);
-        } else if (number >= 1_000) {
-            return String.format("%.1fK", number / 1_000.0);
-        }
-
+        if (number >= 1_000_000_000) return String.format("%.1fB", number / 1_000_000_000.0);
+        if (number >= 1_000_000) return String.format("%.1fM", number / 1_000_000.0);
+        if (number >= 1_000) return String.format("%.1fK", number / 1_000.0);
         return String.valueOf(number);
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (keyCode == 256) {
-            this.close();
+            this.onClose();
             return true;
         }
-
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
-    private static void renderScrollableText(DrawContext context, TextRenderer textRenderer, Text text, int startX, int startY, int endX, int endY, int color) {
-        int textWidth = textRenderer.getWidth(text);
+    private static void renderScrollableText(GuiGraphics context, net.minecraft.client.gui.Font font, Component text, int startX, int startY, int endX, int endY, int color) {
+        int textWidth = font.width(text);
         int availableWidth = endX - startX;
         int pauseTime = 1000;
         double scrollSpeed = 5.0;
 
         if (textWidth > availableWidth) {
             int overflowWidth = textWidth - availableWidth;
-
             long currentTime = System.currentTimeMillis();
-            long totalCycleTime = (long) ((overflowWidth / scrollSpeed) * 1000) * 2 + pauseTime * 2;
+            long totalCycleTime = (long) ((overflowWidth / scrollSpeed) * 1000) * 2 + pauseTime * 2L;
             long timeInCycle = currentTime % totalCycleTime;
 
             int scrollOffset;
-
             if (timeInCycle < pauseTime) {
                 scrollOffset = 0;
             } else if (timeInCycle < pauseTime + (overflowWidth / scrollSpeed) * 1000) {
-                double elapsed = timeInCycle - pauseTime;
-                scrollOffset = (int) (elapsed * scrollSpeed / 1000);
+                scrollOffset = (int) ((timeInCycle - pauseTime) * scrollSpeed / 1000);
             } else if (timeInCycle < pauseTime + (overflowWidth / scrollSpeed) * 1000 + pauseTime) {
                 scrollOffset = overflowWidth;
             } else {
-                double elapsed = timeInCycle - pauseTime - (overflowWidth / scrollSpeed) * 1000 - pauseTime;
-                scrollOffset = overflowWidth - (int) (elapsed * scrollSpeed / 1000);
+                scrollOffset = overflowWidth - (int) ((timeInCycle - pauseTime - (overflowWidth / scrollSpeed) * 1000 - pauseTime) * scrollSpeed / 1000);
             }
 
             context.enableScissor(startX, startY, endX, endY);
-            context.drawTextWithShadow(textRenderer, text, startX - scrollOffset, startY + (endY - startY - 9) / 2, color);
+            context.drawString(font, text, startX - scrollOffset, startY + (endY - startY - 9) / 2, color, false);
             context.disableScissor();
         } else {
-            context.drawTextWithShadow(textRenderer, text, startX, startY + (endY - startY - 9) / 2, color);
+            context.drawString(font, text, startX, startY + (endY - startY - 9) / 2, color, false);
         }
     }
 }
