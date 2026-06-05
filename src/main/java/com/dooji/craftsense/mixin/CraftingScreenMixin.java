@@ -387,13 +387,13 @@ public abstract class CraftingScreenMixin {
     @Unique
     private void renderGhostItem(GuiGraphics context, ItemStack stack, int x, int y, float opacity, int mouseX, int mouseY, boolean isLastCrafted) {
         context.pose().pushPose();
-        context.pose().translate(0, 0, 200);
+        context.pose().translate(0, 0, -100);
 
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
 
         context.renderFakeItem(stack, x, y);
-        context.fill(x, y, x + 16, y + 16, 0x80000000);
+        context.fill(x, y, x + 16, y + 16, (int)(opacity * 255) << 24 | 0x00FFFFFF);
 
         if (mouseX >= x && mouseX < x + 16 && mouseY >= y && mouseY < y + 16) {
             List<Component> tooltip = new ArrayList<>();
