@@ -11,6 +11,14 @@ import com.dooji.craftsense.Pair;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.systems.RenderSystem;
 
+import com.mojang.blaze3d.platform.Lighting;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.world.item.ItemDisplayContext;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.CraftingScreen;
@@ -114,7 +122,7 @@ public abstract class CraftingScreenMixin {
             CraftingRecipe recipe = cachedLastCraftedRecipe.get();
             if (predictor.hasRequiredIngredients(recipe, predictor.getAvailableItems(playerInventory, cursorStack, input))) {
                 ItemStack resultStack = recipe.getResultItem(world.registryAccess());
-                renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f, mouseX, mouseY, true);
+                renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.4f, mouseX, mouseY, true);
                 return;
             }
         }
@@ -127,7 +135,7 @@ public abstract class CraftingScreenMixin {
             CraftingRecipe recipe = cachedSuggestedRecipe.get();
             if (predictor.hasRequiredIngredients(recipe, predictor.getAvailableItems(playerInventory, cursorStack, input))) {
                 ItemStack resultStack = recipe.getResultItem(world.registryAccess());
-                renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f, mouseX, mouseY, false);
+                renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.4f, mouseX, mouseY, false);
 
                 if (recipe instanceof ShapedRecipe) {
                     renderShapedRecipeIngredients(context, recipe, input, handler, screenX, screenY, mouseX, mouseY, playerInventory, cursorStack, world, predictor);
@@ -268,7 +276,7 @@ public abstract class CraftingScreenMixin {
     private void renderShapedRecipeIngredients(GuiGraphics context, CraftingRecipe recipe, CraftingContainer input, CraftingMenu handler, int screenX, int screenY, int mouseX, int mouseY, Inventory playerInventory, ItemStack cursorStack, Level world, CraftingPredictor predictor) {
         ShapedRecipe shapedRecipe = (ShapedRecipe) recipe;
         ItemStack resultStack = recipe.getResultItem(world.registryAccess());
-        renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.2f, mouseX, mouseY, false);
+        renderGhostItem(context, resultStack, resultSlotX, resultSlotY, 0.4f, mouseX, mouseY, false);
 
         int recipeWidth = shapedRecipe.getWidth();
         int recipeHeight = shapedRecipe.getHeight();
@@ -310,7 +318,7 @@ public abstract class CraftingScreenMixin {
                     ItemStack[] matchingStacks = ingredient.getItems();
                     if (matchingStacks.length > 0) {
                         ItemStack ghostStack = matchingStacks[0];
-                        renderGhostItem(context, ghostStack, slotX, slotY, 0.2f, mouseX, mouseY, false);
+                        renderGhostItem(context, ghostStack, slotX, slotY, 0.4f, mouseX, mouseY, false);
                     }
                 }
             }
@@ -363,7 +371,7 @@ public abstract class CraftingScreenMixin {
             Slot slot = handler.slots.get(slotIndex + 1);
             int slotX = screenX + slot.x;
             int slotY = screenY + slot.y;
-            renderGhostItem(context, input.getItem(slotIndex), slotX, slotY, 0.2f, mouseX, mouseY, false);
+            renderGhostItem(context, input.getItem(slotIndex), slotX, slotY, 0.4f, mouseX, mouseY, false);
         }
 
         int ingredientIndex = 0;
@@ -379,21 +387,114 @@ public abstract class CraftingScreenMixin {
                 int slotY = screenY + slot.y;
 
                 ItemStack ingredientStack = remainingIngredients.get(ingredientIndex++);
-                renderGhostItem(context, ingredientStack, slotX, slotY, 0.2f, mouseX, mouseY, false);
+                renderGhostItem(context, ingredientStack, slotX, slotY, 0.4f, mouseX, mouseY, false);
             }
         }
     }
 
+    /**
+     * Maps a render type to its translucent equivalent so ghost items render with real alpha blending.
+     *
+     * Why this is needed: NeoForge item rendering uses render types like entitySolid or entityCutoutNoCull,
+     * both of which have NO_TRANSPARENCY (they call disableBlend). This means setShaderColor alpha has no
+     * visible effect — the item overwrites the framebuffer regardless of its alpha value.
+     * entityTranslucentCull uses TRANSLUCENT_TRANSPARENCY (enableBlend + SRC_ALPHA blending), which
+     * actually composites the item against the background at the desired opacity.
+     *
+     * We can't hard-code LOCATION_BLOCKS as the texture for all items: items with custom renderers
+     * (e.g. chests) use their own entity textures, not the block atlas. Using the wrong texture
+     * corrupts the rendering. So we extract the texture from whatever render type the item requested
+     * via reflection (CompositeRenderType.state -> CompositeState.textureState -> cutoutTexture()),
+     * then build entityTranslucentCull with that same texture.
+     *
+     * Results are cached by render type instance — since render types are singletons via Util.memoize,
+     * reflection only runs once per unique type across the session.
+     */
+    @Unique
+    private static final Map<RenderType, RenderType> ghostTypeCache = new HashMap<>();
+
+    @Unique
+    @SuppressWarnings("unchecked")
+    private static RenderType toGhostType(RenderType type) {
+        return ghostTypeCache.computeIfAbsent(type, t -> {
+            try {
+                // CompositeRenderType is package-private, so we walk up the class hierarchy
+                // to find the 'state' field rather than referencing the class directly.
+                java.lang.reflect.Field sf = null;
+                for (Class<?> c = t.getClass(); c != null; c = c.getSuperclass()) {
+                    try { sf = c.getDeclaredField("state"); break; } catch (NoSuchFieldException ignored) {}
+                }
+                if (sf == null) return RenderType.entityTranslucentCull(TextureAtlas.LOCATION_BLOCKS);
+                sf.setAccessible(true);
+                Object state = sf.get(t);
+
+                // textureState is package-private on CompositeState.
+                java.lang.reflect.Field tf = state.getClass().getDeclaredField("textureState");
+                tf.setAccessible(true);
+                Object texState = tf.get(state);
+
+                // cutoutTexture() is protected on EmptyTextureStateShard; walk up to find it.
+                java.lang.reflect.Method m = null;
+                for (Class<?> c = texState.getClass(); c != null; c = c.getSuperclass()) {
+                    try { m = c.getDeclaredMethod("cutoutTexture"); break; } catch (NoSuchMethodException ignored) {}
+                }
+                if (m == null) return RenderType.entityTranslucentCull(TextureAtlas.LOCATION_BLOCKS);
+                m.setAccessible(true);
+
+                Optional<ResourceLocation> tex = (Optional<ResourceLocation>) m.invoke(texState);
+                return tex.map(RenderType::entityTranslucentCull)
+                          .orElse(RenderType.entityTranslucentCull(TextureAtlas.LOCATION_BLOCKS));
+            } catch (Exception e) {
+                return RenderType.entityTranslucentCull(TextureAtlas.LOCATION_BLOCKS);
+            }
+        });
+    }
+
+    /**
+     * Renders an item as a semi-transparent ghost to indicate a crafting suggestion.
+     *
+     * We replicate GuiGraphics.renderFakeItem manually instead of calling it directly because
+     * renderFakeItem always uses the item's default render types (solid/cutout), which have
+     * NO_TRANSPARENCY and ignore alpha. By supplying our own MultiBufferSource via a lambda that
+     * redirects every requested render type to its entityTranslucentCull equivalent (see toGhostType),
+     * we get real TRANSLUCENT_TRANSPARENCY blending on the item geometry.
+     *
+     * setShaderColor sets the ColorModulator uniform in the shader, which multiplies the fragment
+     * alpha, giving us control over final opacity.
+     *
+     * endBatch() must be called while the shader color is still set to opacity, so the buffered
+     * geometry is drawn before the reset to (1,1,1,1).
+     */
     @Unique
     private void renderGhostItem(GuiGraphics context, ItemStack stack, int x, int y, float opacity, int mouseX, int mouseY, boolean isLastCrafted) {
+        if (stack.isEmpty()) return;
+
+        Minecraft mc = Minecraft.getInstance();
+        BakedModel model = mc.getItemRenderer().getModel(stack, mc.level, null, 0);
+
+        MultiBufferSource.BufferSource base = context.bufferSource();
+        MultiBufferSource ghostSource = type -> base.getBuffer(toGhostType(type));
+
         context.pose().pushPose();
-        context.pose().translate(0, 0, -100);
+        context.pose().translate(x + 8, y + 8, 150.0);
+        context.pose().scale(16f, -16f, 16f);
+
+        boolean flatLighting = !model.usesBlockLight();
+        if (flatLighting) Lighting.setupForFlatItems();
 
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
+        RenderSystem.setShaderColor(1f, 1f, 1f, opacity);
 
-        context.renderFakeItem(stack, x, y);
-        context.fill(x, y, x + 16, y + 16, (int)(opacity * 255) << 24 | 0x00FFFFFF);
+        mc.getItemRenderer().render(stack, ItemDisplayContext.GUI, false, context.pose(), ghostSource, 15728880, OverlayTexture.NO_OVERLAY, model);
+        base.endBatch(); // flush while ColorModulator is still at opacity
+
+        RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+        RenderSystem.disableBlend();
+
+        if (flatLighting) Lighting.setupFor3DItems();
+
+        context.pose().popPose();
 
         if (mouseX >= x && mouseX < x + 16 && mouseY >= y && mouseY < y + 16) {
             List<Component> tooltip = new ArrayList<>();
@@ -401,11 +502,8 @@ public abstract class CraftingScreenMixin {
             if (isLastCrafted) {
                 tooltip.add(Component.translatable("tooltip.craftsense.last_crafted_item").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
             }
-            context.renderTooltip(Minecraft.getInstance().font, tooltip, Optional.empty(), mouseX, mouseY);
+            context.renderTooltip(mc.font, tooltip, Optional.empty(), mouseX, mouseY);
         }
-
-        RenderSystem.disableBlend();
-        context.pose().popPose();
     }
 
     @Unique
