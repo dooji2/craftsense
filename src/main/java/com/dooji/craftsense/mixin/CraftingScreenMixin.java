@@ -66,11 +66,12 @@ public abstract class CraftingScreenMixin {
 
     @Inject(method = "render", at = @At("TAIL"))
     private void renderCraftingPrediction(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (!(Minecraft.getInstance().screen instanceof CraftingScreen craftingScreen) || !CraftSense.configManager.isEnabled() || this.recipeBookComponent.isVisible()) {
+        if (!(Minecraft.getInstance().screen instanceof CraftingScreen) || !CraftSense.configManager.isEnabled()) {
             return;
         }
 
         Minecraft client = Minecraft.getInstance();
+        CraftingScreen craftingScreen = (CraftingScreen) client.screen;
         Inventory playerInventory = client.player.getInventory();
         Level world = client.level;
 
@@ -133,7 +134,7 @@ public abstract class CraftingScreenMixin {
     private void onSuggestedRecipeClick(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
         boolean isShiftPressed = Screen_hasShiftDown();
 
-        if (!(Minecraft.getInstance().screen instanceof CraftingScreen) || !CraftSense.configManager.isEnabled() || this.recipeBookComponent.isVisible()) {
+        if (!(Minecraft.getInstance().screen instanceof CraftingScreen) || !CraftSense.configManager.isEnabled() ) {
             return;
         }
 
@@ -195,7 +196,7 @@ public abstract class CraftingScreenMixin {
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
-        if (!(Minecraft.getInstance().screen instanceof CraftingScreen) || !CraftSense.configManager.isEnabled() || this.recipeBookComponent.isVisible()) {
+        if (!(Minecraft.getInstance().screen instanceof CraftingScreen) || !CraftSense.configManager.isEnabled() ) {
             return;
         }
 
@@ -378,7 +379,7 @@ public abstract class CraftingScreenMixin {
     @Unique
     private void renderGhostItem(GuiGraphics context, ItemStack stack, int x, int y, float opacity, int mouseX, int mouseY, boolean isLastCrafted) {
         context.pose().pushPose();
-        context.pose().translate(0, 0, -100);
+        context.pose().translate(0, 0, 200);
 
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
