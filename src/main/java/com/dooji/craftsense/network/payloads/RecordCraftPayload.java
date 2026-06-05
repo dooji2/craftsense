@@ -1,22 +1,21 @@
 package com.dooji.craftsense.network.payloads;
 
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.Identifier;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 
-public record RecordCraftPayload(ItemStack itemStack) implements CustomPayload {
-    public static final CustomPayload.Id<RecordCraftPayload> ID = new CustomPayload.Id<>(Identifier.of("craftsense", "record_craft"));
+public record RecordCraftPayload(ItemStack itemStack) implements CustomPacketPayload {
+    public static final Type<RecordCraftPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("craftsense", "record_craft"));
 
-    public static final PacketCodec<RegistryByteBuf, RecordCraftPayload> CODEC = PacketCodec.tuple(
-            ItemStack.PACKET_CODEC,
-            RecordCraftPayload::itemStack,
+    public static final StreamCodec<RegistryFriendlyByteBuf, RecordCraftPayload> STREAM_CODEC = StreamCodec.composite(
+            ItemStack.STREAM_CODEC, RecordCraftPayload::itemStack,
             RecordCraftPayload::new
     );
 
     @Override
-    public CustomPayload.Id<? extends CustomPayload> getId() {
-        return ID;
+    public Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 }

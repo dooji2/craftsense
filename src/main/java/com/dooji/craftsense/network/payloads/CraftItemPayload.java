@@ -1,24 +1,22 @@
 package com.dooji.craftsense.network.payloads;
 
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.Identifier;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 
-public record CraftItemPayload(String recipeId, boolean isShiftPressed) implements CustomPayload {
-    public static final CustomPayload.Id<CraftItemPayload> ID = new CustomPayload.Id<>(Identifier.of("craftsense", "craft_item"));
+public record CraftItemPayload(String recipeId, boolean isShiftPressed) implements CustomPacketPayload {
+    public static final Type<CraftItemPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("craftsense", "craft_item"));
 
-    public static final PacketCodec<RegistryByteBuf, CraftItemPayload> CODEC = PacketCodec.tuple(
-            PacketCodecs.STRING,
-            CraftItemPayload::recipeId,
-            PacketCodecs.BOOL,
-            CraftItemPayload::isShiftPressed,
+    public static final StreamCodec<RegistryFriendlyByteBuf, CraftItemPayload> STREAM_CODEC = StreamCodec.composite(
+            ByteBufCodecs.STRING_UTF8, CraftItemPayload::recipeId,
+            ByteBufCodecs.BOOL, CraftItemPayload::isShiftPressed,
             CraftItemPayload::new
     );
 
     @Override
-    public CustomPayload.Id<? extends CustomPayload> getId() {
-        return ID;
+    public Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 }

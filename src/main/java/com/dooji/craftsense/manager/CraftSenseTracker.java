@@ -1,12 +1,12 @@
 package com.dooji.craftsense.manager;
 
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 public class CraftSenseTracker {
     private static boolean prioritizeCombatItems = false;
 
     public static void checkPlayerConditions() {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         if (client.player != null) {
             if (client.player.getHealth() < 10.0f) {
                 triggerCombatCondition();
