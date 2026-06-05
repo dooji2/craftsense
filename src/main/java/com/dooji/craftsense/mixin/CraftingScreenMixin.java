@@ -52,7 +52,7 @@ public abstract class CraftingScreenMixin {
 
     @Final
     @Shadow
-    private RecipeBookComponent recipeBook;
+    private RecipeBookComponent recipeBookComponent;
 
     @Unique private int resultSlotX;
     @Unique private int resultSlotY;
@@ -66,7 +66,7 @@ public abstract class CraftingScreenMixin {
 
     @Inject(method = "render", at = @At("TAIL"))
     private void renderCraftingPrediction(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (!(Minecraft.getInstance().screen instanceof CraftingScreen craftingScreen) || !CraftSense.configManager.isEnabled() || this.recipeBook.isVisible()) {
+        if (!(Minecraft.getInstance().screen instanceof CraftingScreen craftingScreen) || !CraftSense.configManager.isEnabled() || this.recipeBookComponent.isVisible()) {
             return;
         }
 
@@ -133,7 +133,7 @@ public abstract class CraftingScreenMixin {
     private void onSuggestedRecipeClick(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
         boolean isShiftPressed = Screen_hasShiftDown();
 
-        if (!(Minecraft.getInstance().screen instanceof CraftingScreen) || !CraftSense.configManager.isEnabled() || this.recipeBook.isVisible()) {
+        if (!(Minecraft.getInstance().screen instanceof CraftingScreen) || !CraftSense.configManager.isEnabled() || this.recipeBookComponent.isVisible()) {
             return;
         }
 
@@ -195,7 +195,7 @@ public abstract class CraftingScreenMixin {
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
-        if (!(Minecraft.getInstance().screen instanceof CraftingScreen) || !CraftSense.configManager.isEnabled() || this.recipeBook.isVisible()) {
+        if (!(Minecraft.getInstance().screen instanceof CraftingScreen) || !CraftSense.configManager.isEnabled() || this.recipeBookComponent.isVisible()) {
             return;
         }
 
