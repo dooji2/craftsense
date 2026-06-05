@@ -9,7 +9,7 @@ import net.minecraft.world.item.ItemStack;
 
 public class OmniToast implements Toast {
 
-    private static final ResourceLocation DEFAULT_BACKGROUND_TEXTURE = ResourceLocation.fromNamespaceAndPath("craftsense", "textures/gui/toast.png");
+    private static final ResourceLocation DEFAULT_BACKGROUND_TEXTURE = ResourceLocation.fromNamespaceAndPath("omnilib", "textures/gui/toast.png");
     private static final int DEFAULT_ICON_SIZE = 16;
     private static final int DEFAULT_TEXTURE_WIDTH = 160;
     private static final int DEFAULT_TEXTURE_HEIGHT = 32;
