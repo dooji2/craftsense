@@ -54,6 +54,9 @@ public abstract class CraftingScreenMixin {
     @Shadow
     private RecipeBookComponent recipeBookComponent;
 
+    @Shadow
+    public int width;
+
     @Unique private int resultSlotX;
     @Unique private int resultSlotY;
     @Unique private String lastGridHash = "";
@@ -67,6 +70,14 @@ public abstract class CraftingScreenMixin {
     @Inject(method = "render", at = @At("TAIL"))
     private void renderCraftingPrediction(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!(Minecraft.getInstance().screen instanceof CraftingScreen) || !CraftSense.configManager.isEnabled()) {
+            return;
+        }
+
+        // Detect if the recipe book panel is actually showing by checking whether leftPos
+        // has been shifted away from center (176 = crafting table imageWidth).
+        int centeredLeftPos = (this.width - 176) / 2;
+        int actualLeftPos = ((AbstractContainerScreenAccessor) this).getLeftPos();
+        if (Math.abs(actualLeftPos - centeredLeftPos) > 5) {
             return;
         }
 
@@ -99,7 +110,7 @@ public abstract class CraftingScreenMixin {
         resultSlotY = screenY + 35;
 
         if (cachedLastCraftedRecipe.isPresent()) {
-            if (showFirstTimeTooltips) {
+            if (showFirstTimeTooltips && isMouseOverSlot(mouseX, mouseY, resultSlotX, resultSlotY)) {
                 renderTooltip(context, Component.translatable("tooltip.craftsense.click_here").getString(), Component.translatable("tooltip.craftsense.lastCraftedSuggest").getString(), resultSlotX, resultSlotY);
             }
 
@@ -385,7 +396,8 @@ public abstract class CraftingScreenMixin {
         RenderSystem.defaultBlendFunc();
 
         context.renderFakeItem(stack, x, y);
-        context.fill(x, y, x + 16, y + 16, (int)(opacity * 255) << 24 | 0x00FFFFFF);
+        // Overlay with a high-opacity white to create a clearly ghost-like appearance.
+        context.fill(x, y, x + 16, y + 16, (int)(0.65f * 255) << 24 | 0x00FFFFFF);
 
         if (mouseX >= x && mouseX < x + 16 && mouseY >= y && mouseY < y + 16) {
             List<Component> tooltip = new ArrayList<>();
