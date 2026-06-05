@@ -54,9 +54,6 @@ public abstract class CraftingScreenMixin {
     @Shadow
     private RecipeBookComponent recipeBookComponent;
 
-    @Shadow
-    public int width;
-
     @Unique private int resultSlotX;
     @Unique private int resultSlotY;
     @Unique private String lastGridHash = "";
@@ -75,7 +72,7 @@ public abstract class CraftingScreenMixin {
 
         // Detect if the recipe book panel is actually showing by checking whether leftPos
         // has been shifted away from center (176 = crafting table imageWidth).
-        int centeredLeftPos = (this.width - 176) / 2;
+        int centeredLeftPos = (Minecraft.getInstance().getWindow().getGuiScaledWidth() - 176) / 2;
         int actualLeftPos = ((AbstractContainerScreenAccessor) this).getLeftPos();
         if (Math.abs(actualLeftPos - centeredLeftPos) > 5) {
             return;
