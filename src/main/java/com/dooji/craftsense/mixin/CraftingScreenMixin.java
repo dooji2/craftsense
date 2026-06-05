@@ -393,8 +393,7 @@ public abstract class CraftingScreenMixin {
         RenderSystem.defaultBlendFunc();
 
         context.renderFakeItem(stack, x, y);
-        // Overlay with a high-opacity white to create a clearly ghost-like appearance.
-        context.fill(x, y, x + 16, y + 16, (int)(0.65f * 255) << 24 | 0x00FFFFFF);
+        context.fill(x, y, x + 16, y + 16, 0x80000000);
 
         if (mouseX >= x && mouseX < x + 16 && mouseY >= y && mouseY < y + 16) {
             List<Component> tooltip = new ArrayList<>();
