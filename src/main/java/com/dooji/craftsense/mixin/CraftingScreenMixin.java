@@ -1,7 +1,6 @@
 package com.dooji.craftsense.mixin;
 
 import com.dooji.craftsense.CraftSense;
-import com.dooji.craftsense.CraftSenseKeyBindings;
 import com.dooji.craftsense.CraftingPredictor;
 import com.dooji.craftsense.manager.CategoryHabitsTracker;
 import com.dooji.craftsense.manager.CategoryManager;
@@ -79,9 +78,6 @@ public abstract class CraftingScreenMixin {
 
     @Unique
     private long lastMouseClickTime = 0;
-
-    @Unique
-    private long lastKeyPressTime = 0;
 
     @Inject(method = "render", at = @At("TAIL"))
     private void renderCraftingPrediction(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
@@ -210,69 +206,6 @@ public abstract class CraftingScreenMixin {
 
                     cir.setReturnValue(true);
                 }
-            }
-        }
-    }
-
-    @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-    private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
-        if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen) || this.recipeBook.isOpen()) {
-            return;
-        }
-
-        long cooldownDuration = 100;
-        long currentTime = System.currentTimeMillis();
-
-        if (currentTime - lastKeyPressTime < cooldownDuration) {
-            cir.setReturnValue(false);
-            return;
-        }
-
-        lastKeyPressTime = currentTime;
-
-        if (CraftSenseKeyBindings.quickCraftKey.matchesKey(keyCode, scanCode)) {
-            MinecraftClient client = MinecraftClient.getInstance();
-            
-            if (client.player != null && client.world != null) {
-                CraftingScreenHandler handler = ((CraftingScreen) (Object) this).getScreenHandler();
-                PlayerInventory inventory = client.player.getInventory();
-                RecipeInputInventory input = ((CraftingScreenHandlerAccessor) handler).getInput();
-                ItemStack cursorStack = handler.getCursorStack();
-
-                CraftingPredictor predictor = CraftingPredictor.getInstance(client.world.getRecipeManager());
-                String currentStateHash = predictor.calculateInputHash(input, inventory, cursorStack);
-
-                if (!currentStateHash.equals(lastGridHash)) {
-                    lastGridHash = currentStateHash;
-                    cachedLastCraftedRecipe = predictor.suggestLastCraftedItem(input, inventory, cursorStack, client.world);
-                    if (cachedLastCraftedRecipe.isEmpty()) {
-                        cachedSuggestedRecipe = predictor.suggestRecipe(input, inventory, cursorStack, client.world);
-                    } else {
-                        cachedSuggestedRecipe = Optional.empty();
-                    }
-                }
-
-                Optional<CraftingRecipe> recipe = cachedSuggestedRecipe.isPresent() ? cachedSuggestedRecipe : cachedLastCraftedRecipe;
-
-                recipe.ifPresent(r -> {
-                    Identifier recipeId = findRecipeId(client.world.getRecipeManager(), r);
-                    if (recipeId != null) {
-                        ItemStack resultStack = r.getResult(client.world.getRegistryManager());
-
-                        if (resultStack.getItem() == Items.AIR) {
-                            return;
-                        }
-
-                        String category = CategoryManager.getCategory(resultStack.getItem());
-
-                        CategoryHabitsTracker habitsConfig = CategoryHabitsTracker.getInstance();
-                        habitsConfig.recordCraft(category, resultStack.getItem().getTranslationKey());
-
-                        ClientPlayNetworking.send(new CraftItemPayload(recipeId.toString(), true));
-                    }
-                });
-
-                cir.setReturnValue(true);
             }
         }
     }
