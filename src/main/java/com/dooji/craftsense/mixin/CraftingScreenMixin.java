@@ -85,7 +85,7 @@ public abstract class CraftingScreenMixin {
 
     @Inject(method = "render", at = @At("TAIL"))
     private void renderCraftingPrediction(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen craftingScreen) || !CraftSense.configManager.isEnabled() || this.recipeBook.isOpen()) {
+        if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen craftingScreen) || this.recipeBook.isOpen()) {
             return;
         }
 
@@ -153,7 +153,7 @@ public abstract class CraftingScreenMixin {
     private void onSuggestedRecipeClick(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
         boolean isShiftPressed = InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow().getHandle(), InputUtil.GLFW_KEY_LEFT_SHIFT);
 
-        if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen) || !CraftSense.configManager.isEnabled() || this.recipeBook.isOpen()) {
+        if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen) || this.recipeBook.isOpen()) {
             return;
         }
 
@@ -216,7 +216,7 @@ public abstract class CraftingScreenMixin {
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
-        if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen) || !CraftSense.configManager.isEnabled() || this.recipeBook.isOpen()) {
+        if (!(MinecraftClient.getInstance().currentScreen instanceof CraftingScreen) || this.recipeBook.isOpen()) {
             return;
         }
 
