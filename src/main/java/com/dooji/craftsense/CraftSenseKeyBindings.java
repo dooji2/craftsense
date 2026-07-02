@@ -9,7 +9,6 @@ import org.lwjgl.glfw.GLFW;
 
 public class CraftSenseKeyBindings {
     public static KeyBinding toggleKey;
-    public static KeyBinding openStatsKey;
     public static KeyBinding quickCraftKey;
 
     public static void register() {
@@ -17,13 +16,6 @@ public class CraftSenseKeyBindings {
                 "key.craftsense.toggle",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_K,
-                "category.craftsense"
-        ));
-
-        openStatsKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.craftsense.open_stats",
-                InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_J,
                 "category.craftsense"
         ));
 

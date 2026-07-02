@@ -12,6 +12,7 @@
   },
   "client": [
     "CraftingScreenMixin",
-    "HandledScreenAccessor"
+    "HandledScreenAccessor",
+    "StatsScreenMixin"
   ]
 }
