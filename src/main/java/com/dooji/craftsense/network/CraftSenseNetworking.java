@@ -113,7 +113,7 @@ public class CraftSenseNetworking {
     }
 
     private static boolean hasAllIngredients(PlayerInventory inventory, RecipeInputInventory gridInventory, CraftingRecipe recipe, ItemStack cursorStack) {
-        for (var ingredient : recipe.getIngredients()) {
+        for (Ingredient ingredient : recipe.getIngredients()) {
             boolean found = false;
 
             for (int i = 0; i < gridInventory.size(); i++) {
@@ -146,11 +146,11 @@ public class CraftSenseNetworking {
     private static void consumeIngredients(CraftingRecipe recipe, RecipeInputInventory gridInventory, PlayerInventory inventory, ItemStack cursorStack) {
         Map<Ingredient, Integer> ingredientsNeeded = new HashMap<>();
 
-        for (var ingredient : recipe.getIngredients()) {
+        for (Ingredient ingredient : recipe.getIngredients()) {
             ingredientsNeeded.put(ingredient, ingredientsNeeded.getOrDefault(ingredient, 0) + 1);
         }
 
-        for (var entry : ingredientsNeeded.entrySet()) {
+        for (Map.Entry<Ingredient, Integer> entry : ingredientsNeeded.entrySet()) {
             Ingredient ingredient = entry.getKey();
             int requiredAmount = entry.getValue();
 

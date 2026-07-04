@@ -1,5 +1,7 @@
 package com.dooji.craftsense.network.payloads;
 
+import com.dooji.craftsense.CraftSense;
+
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
@@ -7,7 +9,7 @@ import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 
 public record CraftItemPayload(String recipeId, boolean isShiftPressed) implements CustomPayload {
-    public static final CustomPayload.Id<CraftItemPayload> ID = new CustomPayload.Id<>(Identifier.of("craftsense", "craft_item"));
+    public static final CustomPayload.Id<CraftItemPayload> ID = new CustomPayload.Id<>(Identifier.of(CraftSense.MOD_ID, "craft_item"));
 
     public static final PacketCodec<RegistryByteBuf, CraftItemPayload> CODEC = PacketCodec.tuple(
             PacketCodecs.STRING,

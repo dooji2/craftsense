@@ -1,20 +1,19 @@
 package com.dooji.craftsense.manager;
 
+import com.dooji.craftsense.CraftSense;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -26,8 +25,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class CategoryGenerator {
-    public static final String MOD_ID = "craftsense";
-    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CATEGORIES_PATH = Path.of("config/CraftSense/categories.json");
     private static final Pattern SPLIT_PATTERN = Pattern.compile("[_\\s]+");
@@ -155,23 +152,29 @@ public class CategoryGenerator {
         return "aeiou".indexOf(Character.toLowerCase(c)) != -1;
     }
 
-    private static Map<String, List<String>> loadExistingCategories() {
+    static Map<String, List<String>> loadExistingCategories() {
         Map<String, List<String>> map = new HashMap<>();
 
         try {
             Files.createDirectories(CATEGORIES_PATH.getParent());
             if (Files.exists(CATEGORIES_PATH)) {
                 try (FileReader reader = new FileReader(CATEGORIES_PATH.toFile())) {
-                    Type type = new TypeToken<Map<String, List<String>>>() {}.getType();
-                    map = GSON.fromJson(reader, type);
+                    JsonObject categories = GSON.fromJson(reader, JsonObject.class);
+                    if (categories != null) {
+                        for (Map.Entry<String, JsonElement> entry : categories.entrySet()) {
+                            List<String> itemNames = new ArrayList<>();
+                            for (JsonElement item : entry.getValue().getAsJsonArray()) {
+                                itemNames.add(item.getAsString());
+                            }
 
-                    if (map == null) {
-                        map = new HashMap<>();
+                            map.put(entry.getKey(), itemNames);
+                        }
                     }
                 }
             }
-        } catch (IOException e) {
-            LOGGER.error("Failed to load existing categories", e);
+        } catch (Exception e) {
+            CraftSense.LOGGER.error("Failed to load existing categories", e);
+            return new HashMap<>();
         }
 
         return map;
@@ -183,10 +186,9 @@ public class CategoryGenerator {
 
             try (FileWriter writer = new FileWriter(CATEGORIES_PATH.toFile())) {
                 GSON.toJson(categorizedItems, writer);
-                LOGGER.info("Categories successfully saved to {}", CATEGORIES_PATH);
             }
         } catch (IOException e) {
-            LOGGER.error("Failed to save categories to file", e);
+            CraftSense.LOGGER.error("Failed to save categories to file", e);
         }
     }
 
