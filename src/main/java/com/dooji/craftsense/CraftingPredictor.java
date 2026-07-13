@@ -6,6 +6,7 @@ import com.dooji.craftsense.manager.CraftSenseTracker;
 
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.RecipeInputInventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.recipe.CraftingRecipe;
 import net.minecraft.recipe.Ingredient;
@@ -14,7 +15,6 @@ import net.minecraft.recipe.RecipeManager;
 import net.minecraft.recipe.RecipeType;
 import net.minecraft.recipe.ShapedRecipe;
 import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.Pair;
 import net.minecraft.world.World;
 import net.minecraft.util.collection.DefaultedList;
@@ -122,11 +122,11 @@ public class CraftingPredictor {
 
         String mostCraftedItem = null;
         int highestItemCount = -1;
-        for (Map.Entry<String, Integer> entry : habitsConfig.itemCraftCount.entrySet()) {
-            String itemName = entry.getKey();
+        for (Item item : Registries.ITEM) {
+            String itemName = item.getTranslationKey();
 
-            if (CategoryManager.getCategory(Registries.ITEM.get(Identifier.of(itemName))).equals(bestCategory)) {
-                int itemCount = entry.getValue();
+            if (CategoryManager.getCategory(item).equals(bestCategory)) {
+                int itemCount = habitsConfig.getItemCraftCount(itemName);
 
                 if (itemCount > highestItemCount) {
                     mostCraftedItem = itemName;
@@ -138,6 +138,7 @@ public class CraftingPredictor {
         List<ItemStack> availableItems = getAvailableItems(playerInventory, cursorStack, input);
         List<RecipeEntry<CraftingRecipe>> filteredRecipeEntries = recipes.stream()
                 .filter(recipeEntry -> recipeEntry.value().fits(input.getWidth(), input.getHeight()))
+                .filter(recipeEntry -> !recipeEntry.value().getIngredients().isEmpty())
                 .filter(recipeEntry -> hasRequiredIngredients(recipeEntry.value(), availableItems))
                 .toList();
 
@@ -264,7 +265,7 @@ public class CraftingPredictor {
             hashBuilder.append(cursorStack.getTranslationKey()).append(":").append(cursorStack.getCount());
         }
 
-        return hashBuilder.toString();
+        return hashBuilder.append(habitsConfig.itemCraftCount).append(habitsConfig.getLastCraftedItem()).toString();
     }
 
     public Pair<Integer, Boolean> matchShapedRecipe(ShapedRecipe recipe, RecipeInputInventory input, List<ItemStack> availableItems, int offsetX, int offsetY) {
@@ -451,7 +452,7 @@ public class CraftingPredictor {
             CraftingRecipe recipe = recipeEntry.value();
             String resultTranslationKey = recipe.getResult(world.getRegistryManager()).getTranslationKey();
 
-            if (recipe.fits(input.getWidth(), input.getHeight()) && resultTranslationKey.equals(lastCraftedItem)) {
+            if (recipe.fits(input.getWidth(), input.getHeight()) && !recipe.getIngredients().isEmpty() && resultTranslationKey.equals(lastCraftedItem)) {
                 int score = calculateMatchScore(recipe, input, playerInventory, cursorStack);
                 if (score > 0) {
                     return Optional.of(recipe);
