@@ -37,17 +37,18 @@ public class CategoryGenerator {
 
         for (Item item : Registries.ITEM) {
             Identifier itemId = Registries.ITEM.getId(item);
-            String itemName = itemId.getPath().toUpperCase();
+            String itemName = itemId.toString();
+            String itemPath = itemId.getPath().toUpperCase();
 
-            if (itemName.equals("AIR")) continue;
+            if (itemId.equals(Identifier.ofVanilla("air"))) continue;
 
             List<String> tokens;
 
-            if (itemName.startsWith("MUSIC_DISC") || itemName.startsWith("DISC_")) {
+            if (itemPath.startsWith("MUSIC_DISC") || itemPath.startsWith("DISC_")) {
                 tokens = new ArrayList<>();
                 tokens.add("MUSIC_DISC");
             } else {
-                tokens = Arrays.stream(SPLIT_PATTERN.split(itemName))
+                tokens = Arrays.stream(SPLIT_PATTERN.split(itemPath))
                         .filter(s -> s.length() > 2)
                         .collect(Collectors.toList());
             }
@@ -102,7 +103,7 @@ public class CategoryGenerator {
             }
         }
 
-        Map<String, List<String>> categorizedItems = loadExistingCategories();
+        Map<String, List<String>> categorizedItems = new HashMap<>();
         for (Map.Entry<String, String> entry : itemCategoryMap.entrySet()) {
             String itemName = entry.getKey();
             String label = formatCategoryName(entry.getValue());
