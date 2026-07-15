@@ -211,15 +211,7 @@ public class CraftingPredictor {
 
     private int calculateMatchScore(CraftingRecipe recipe, RecipeInputInventory input, PlayerInventory playerInventory, ItemStack cursorStack) {
         int score = -1;
-
-        List<ItemStack> availableItems = new ArrayList<>();
-        for (ItemStack stack : playerInventory.main) {
-            availableItems.add(stack.copy());
-        }
-
-        if (!cursorStack.isEmpty()) {
-            availableItems.add(cursorStack.copy());
-        }
+        List<ItemStack> availableItems = getAvailableItems(playerInventory, cursorStack, input);
 
         if (recipe instanceof ShapedRecipe shapedRecipe) {
             int recipeWidth = shapedRecipe.getWidth();
@@ -230,7 +222,7 @@ public class CraftingPredictor {
 
             for (int offsetX = 0; offsetX <= maxOffsetX; offsetX++) {
                 for (int offsetY = 0; offsetY <= maxOffsetY; offsetY++) {
-                    Pair<Integer, Boolean> matchResult = matchShapedRecipe(shapedRecipe, input, getAvailableItems(playerInventory, cursorStack, input), offsetX, offsetY);
+                    Pair<Integer, Boolean> matchResult = matchShapedRecipe(shapedRecipe, input, availableItems, offsetX, offsetY);
                     int alignmentScore = matchResult.getLeft();
                     if (alignmentScore > score) {
                         score = alignmentScore;
