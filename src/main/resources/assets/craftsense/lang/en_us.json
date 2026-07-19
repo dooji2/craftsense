@@ -1,12 +1,8 @@
 {
   "key.craftsense.toggle": "Toggle CraftSense",
-  "key.craftsense.open_stats": "Open CraftSense Statistics",
   "key.craftsense.quick_craft": "Quick Craft Key",
   "category.craftsense": "CraftSense",
-  "screen.craftsense.stats": "CraftSense Statistics",
-  "screen.craftsense.stats.done": "Done",
-  "screen.craftsense.no_history": "No crafting history has been recorded yet.",
-  "tooltip.craftsense.no_items_found": "No items found in this category.",
+  "screen.craftsense.stats": "CraftSense",
   "tooltip.craftsense.last_crafted_item": "Last crafted item",
   "tooltip.craftsense.click_here": "Click here",
   "tooltip.craftsense.lastCraftedSuggest": "Quickly craft the\nlast item you crafted!",
