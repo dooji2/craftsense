@@ -8,17 +8,9 @@ import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
 
 public class CraftSenseKeyBindings {
-    public static KeyBinding toggleKey;
     public static KeyBinding quickCraftKey;
 
     public static void register() {
-        toggleKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.craftsense.toggle",
-                InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_K,
-                "category.craftsense"
-        ));
-
         quickCraftKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.craftsense.quick_craft",
                 InputUtil.Type.KEYSYM,
