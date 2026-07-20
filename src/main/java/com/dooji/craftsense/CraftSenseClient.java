@@ -15,7 +15,6 @@ public class CraftSenseClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        CraftSenseKeyBindings.register();
         CategoryGenerator.generateCategories();
         CraftSenseClientNetworking.init();
 
