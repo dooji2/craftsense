@@ -1,5 +1,7 @@
 package com.dooji.craftsense.manager;
 
+import com.dooji.craftsense.CraftSense;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -44,7 +46,7 @@ public class ConfigurationManager {
                 saveConfig();
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            CraftSense.LOGGER.error("Failed to load config", e);
             this.firstTime = true;
         }
     }
@@ -55,7 +57,7 @@ public class ConfigurationManager {
             config.put(FIRST_TIME_KEY, firstTime);
             GSON.toJson(config, writer);
         } catch (IOException e) {
-            e.printStackTrace();
+            CraftSense.LOGGER.error("Failed to save config", e);
         }
     }
 }

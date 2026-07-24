@@ -1,5 +1,6 @@
 package com.dooji.craftsense.network;
 
+import com.dooji.craftsense.CraftSense;
 import com.dooji.craftsense.mixin.CraftingScreenHandlerAccessor;
 import com.dooji.craftsense.network.payloads.CraftItemPayload;
 
@@ -26,7 +27,7 @@ import java.util.Optional;
 
 public class CraftSenseNetworking {
     public static void init() {
-        ServerPlayNetworking.registerGlobalReceiver(new Identifier("craftsense", "craft_item"), (server, player, handler, buf, responseSender) -> {
+        ServerPlayNetworking.registerGlobalReceiver(new Identifier(CraftSense.MOD_ID, "craft_item"), (server, player, handler, buf, responseSender) -> {
             CraftItemPayload payload = CraftItemPayload.read(buf);
             server.execute(() -> handleCraftItemPayload(payload, player));
         });
@@ -111,7 +112,7 @@ public class CraftSenseNetworking {
     }
 
     private static boolean hasAllIngredients(PlayerInventory inventory, RecipeInputInventory gridInventory, CraftingRecipe recipe, ItemStack cursorStack) {
-        for (var ingredient : recipe.getIngredients()) {
+        for (Ingredient ingredient : recipe.getIngredients()) {
             boolean found = false;
 
             for (int i = 0; i < gridInventory.size(); i++) {
@@ -144,11 +145,11 @@ public class CraftSenseNetworking {
     private static void consumeIngredients(CraftingRecipe recipe, RecipeInputInventory gridInventory, PlayerInventory inventory, ItemStack cursorStack) {
         Map<Ingredient, Integer> ingredientsNeeded = new HashMap<>();
 
-        for (var ingredient : recipe.getIngredients()) {
+        for (Ingredient ingredient : recipe.getIngredients()) {
             ingredientsNeeded.put(ingredient, ingredientsNeeded.getOrDefault(ingredient, 0) + 1);
         }
 
-        for (var entry : ingredientsNeeded.entrySet()) {
+        for (Map.Entry<Ingredient, Integer> entry : ingredientsNeeded.entrySet()) {
             Ingredient ingredient = entry.getKey();
             int requiredAmount = entry.getValue();
 

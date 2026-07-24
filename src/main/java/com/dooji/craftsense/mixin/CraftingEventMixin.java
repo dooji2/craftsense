@@ -1,5 +1,6 @@
 package com.dooji.craftsense.mixin;
 
+import com.dooji.craftsense.CraftSense;
 import com.dooji.craftsense.network.payloads.RecordCraftPayload;
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -24,7 +25,7 @@ public abstract class CraftingEventMixin {
     @Inject(method = "onCraft", at = @At("HEAD"))
     private void onCraft(ItemStack stack, World world, PlayerEntity player, CallbackInfo ci) {
         if (!world.isClient && player instanceof ServerPlayerEntity serverPlayer && serverPlayer.currentScreenHandler instanceof CraftingScreenHandler) {
-            Identifier channelId = new Identifier("craftsense", "record_craft");
+            Identifier channelId = new Identifier(CraftSense.MOD_ID, "record_craft");
             PacketByteBuf packetBuffer = RecordCraftPayload.createPacket(stack.copy());
 
             ServerPlayNetworking.send(serverPlayer, channelId, packetBuffer);

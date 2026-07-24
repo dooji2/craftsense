@@ -199,7 +199,7 @@ public abstract class CraftingScreenMixin {
                     String category = CategoryManager.getCategory(resultStack.getItem());
                     habitsConfig.recordCraft(category, resultStack.getItem().getTranslationKey());
 
-                    Identifier channelId = new Identifier("craftsense", "craft_item");
+                    Identifier channelId = new Identifier(CraftSense.MOD_ID, "craft_item");
                     PacketByteBuf packetBuffer = CraftItemPayload.createPacket(recipeId.toString(), isShiftPressed);
 
                     ClientPlayNetworking.send(channelId, packetBuffer);

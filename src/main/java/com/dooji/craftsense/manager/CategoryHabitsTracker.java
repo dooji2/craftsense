@@ -1,9 +1,11 @@
 package com.dooji.craftsense.manager;
 
+import com.dooji.craftsense.CraftSense;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonSyntaxException;
-import com.google.gson.reflect.TypeToken;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -42,45 +44,34 @@ public class CategoryHabitsTracker {
             Files.createDirectories(HABITS_PATH.getParent());
             if (Files.exists(HABITS_PATH)) {
                 try (FileReader reader = new FileReader(HABITS_PATH.toFile())) {
-                    Map<String, Object> data = GSON.fromJson(reader, new TypeToken<Map<String, Object>>() {}.getType());
+                    JsonObject data = GSON.fromJson(reader, JsonObject.class);
 
                     if (data != null) {
-                        Map<String, Number> rawCategoryCraftCount = (Map<String, Number>) data.getOrDefault("categoryCraftCount", new HashMap<>());
-                        categoryCraftCount = new HashMap<>();
-                        for (Map.Entry<String, Number> entry : rawCategoryCraftCount.entrySet()) {
-                            categoryCraftCount.put(entry.getKey(), entry.getValue().intValue());
+                        if (data.has("categoryCraftCount")) {
+                            categoryCraftCount = readCounts(data.getAsJsonObject("categoryCraftCount"));
+                            itemCraftCount = readCounts(data.getAsJsonObject("itemCraftCount"));
+                            JsonElement lastItem = data.get("lastCraftedItem");
+                            if (lastItem != null && !lastItem.isJsonNull()) lastCraftedItem = lastItem.getAsString();
+                        } else {
+                            categoryCraftCount = readCounts(data);
                         }
-
-                        Map<String, Number> rawItemCraftCount = (Map<String, Number>) data.getOrDefault("itemCraftCount", new HashMap<>());
-                        itemCraftCount = new HashMap<>();
-                        for (Map.Entry<String, Number> entry : rawItemCraftCount.entrySet()) {
-                            itemCraftCount.put(entry.getKey(), entry.getValue().intValue());
-                        }
-
-                        lastCraftedItem = (String) data.getOrDefault("lastCraftedItem", null);
-                    }
-                } catch (JsonSyntaxException | ClassCastException e) {
-                    try (FileReader legacyReader = new FileReader(HABITS_PATH.toFile())) {
-                        Map<String, Number> rawCategoryCraftCount = GSON.fromJson(legacyReader, new TypeToken<Map<String, Number>>() {}.getType());
-                        categoryCraftCount = new HashMap<>();
-                        for (Map.Entry<String, Number> entry : rawCategoryCraftCount.entrySet()) {
-                            categoryCraftCount.put(entry.getKey(), entry.getValue().intValue());
-                        }
-                        itemCraftCount = new HashMap<>();
-                        lastCraftedItem = null;
-                    } catch (IOException innerException) {
-                        innerException.printStackTrace();
-                        categoryCraftCount = new HashMap<>();
-                        itemCraftCount = new HashMap<>();
-                        lastCraftedItem = null;
                     }
                 }
             } else {
                 save();
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            CraftSense.LOGGER.error("Failed to load crafting habits", e);
         }
+    }
+
+    private Map<String, Integer> readCounts(JsonObject counts) {
+        Map<String, Integer> result = new HashMap<>();
+        for (Map.Entry<String, JsonElement> entry : counts.entrySet()) {
+            result.put(entry.getKey(), entry.getValue().getAsInt());
+        }
+
+        return result;
     }
 
     public void save() {
@@ -91,7 +82,7 @@ public class CategoryHabitsTracker {
             data.put("lastCraftedItem", lastCraftedItem);
             GSON.toJson(data, writer);
         } catch (IOException e) {
-            e.printStackTrace();
+            CraftSense.LOGGER.error("Failed to save crafting habits", e);
         }
     }
 

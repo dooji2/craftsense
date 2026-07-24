@@ -1,5 +1,6 @@
 package com.dooji.craftsense.network;
 
+import com.dooji.craftsense.CraftSense;
 import com.dooji.craftsense.manager.CategoryHabitsTracker;
 import com.dooji.craftsense.manager.CategoryManager;
 import com.dooji.craftsense.network.payloads.RecordCraftPayload;
@@ -9,7 +10,7 @@ import net.minecraft.util.Identifier;
 
 public class CraftSenseClientNetworking {
     public static void init() {
-        ClientPlayNetworking.registerGlobalReceiver(new Identifier("craftsense", "record_craft"), (client, handler, buf, responseSender) -> {
+        ClientPlayNetworking.registerGlobalReceiver(new Identifier(CraftSense.MOD_ID, "record_craft"), (client, handler, buf, responseSender) -> {
             RecordCraftPayload payload = RecordCraftPayload.read(buf);
             client.execute(() -> recordCraft(payload));
         });
