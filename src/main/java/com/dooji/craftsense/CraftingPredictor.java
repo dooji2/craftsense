@@ -135,6 +135,7 @@ public class CraftingPredictor {
 
         List<ItemStack> availableItems = getAvailableItems(playerInventory, cursorStack, input);
         List<CraftingRecipe> filteredRecipes = recipes.stream()
+                .filter(recipe -> recipe.fits(input.getWidth(), input.getHeight()))
                 .filter(recipe -> hasRequiredIngredients(recipe, availableItems))
                 .toList();
 
@@ -221,8 +222,8 @@ public class CraftingPredictor {
             int recipeWidth = shapedRecipe.getWidth();
             int recipeHeight = shapedRecipe.getHeight();
 
-            int maxOffsetX = 3 - recipeWidth;
-            int maxOffsetY = 3 - recipeHeight;
+            int maxOffsetX = input.getWidth() - recipeWidth;
+            int maxOffsetY = input.getHeight() - recipeHeight;
 
             for (int offsetX = 0; offsetX <= maxOffsetX; offsetX++) {
                 for (int offsetY = 0; offsetY <= maxOffsetY; offsetY++) {
@@ -278,9 +279,9 @@ public class CraftingPredictor {
 
             boolean mismatch = false;
 
-            for (int gridY = 0; gridY < 3; gridY++) {
-                for (int gridX = 0; gridX < 3; gridX++) {
-                    int gridIndex = gridY * 3 + gridX;
+            for (int gridY = 0; gridY < input.getHeight(); gridY++) {
+                for (int gridX = 0; gridX < input.getWidth(); gridX++) {
+                    int gridIndex = gridY * input.getWidth() + gridX;
                     ItemStack placedItem = input.getStack(gridIndex);
 
                     boolean isWithinRecipe = gridX >= offsetX && gridX < offsetX + recipeWidth && gridY >= offsetY && gridY < offsetY + recipeHeight;
@@ -304,7 +305,7 @@ public class CraftingPredictor {
                     int gridX = offsetX + recipeX;
                     int gridY = offsetY + recipeY;
 
-                    int gridIndex = gridY * 3 + gridX;
+                    int gridIndex = gridY * input.getWidth() + gridX;
                     ItemStack placedItem = input.getStack(gridIndex);
 
                     if (ingredient.isEmpty()) {
@@ -449,7 +450,7 @@ public class CraftingPredictor {
             ItemStack result = recipe.getOutput(world.getRegistryManager());
             String resultTranslationKey = result.getTranslationKey();
 
-            if (resultTranslationKey.equals(lastCraftedItem)) {
+            if (resultTranslationKey.equals(lastCraftedItem) && recipe.fits(input.getWidth(), input.getHeight())) {
                 int score = calculateMatchScore(recipe, input, playerInventory, cursorStack);
                 if (score > 0) {
                     return Optional.of(recipe);

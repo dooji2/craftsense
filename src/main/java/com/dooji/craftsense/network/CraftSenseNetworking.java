@@ -17,6 +17,8 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.RecipeInputInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.CraftingScreenHandler;
+import net.minecraft.screen.AbstractRecipeScreenHandler;
+import net.minecraft.screen.PlayerScreenHandler;
 import net.minecraft.network.packet.s2c.play.ScreenHandlerSlotUpdateS2CPacket;
 
 import java.util.HashMap;
@@ -45,38 +47,50 @@ public class CraftSenseNetworking {
             CraftingRecipe recipe = recipeOptional.get();
             PlayerInventory inventory = player.getInventory();
 
-            if (player.currentScreenHandler instanceof CraftingScreenHandler handler) {
-                RecipeInputInventory gridInventory = ((CraftingScreenHandlerAccessor) handler).getInput();
-                DynamicRegistryManager.Immutable registries = player.getServer().getRegistryManager();
-                ItemStack resultStack = recipe.getOutput(registries).copy();
-                ItemStack cursorStack = handler.getCursorStack();
+            AbstractRecipeScreenHandler<?> handler;
+            RecipeInputInventory gridInventory;
+            if (player.currentScreenHandler instanceof PlayerScreenHandler playerHandler) {
+                handler = playerHandler;
+                gridInventory = playerHandler.getCraftingInput();
+            } else if (player.currentScreenHandler instanceof CraftingScreenHandler craftingHandler) {
+                handler = craftingHandler;
+                gridInventory = ((CraftingScreenHandlerAccessor) craftingHandler).getInput();
+            } else {
+                return;
+            }
 
-                CraftingRecipe recipeToUse = selectCraftableVariant(recipeManager, resultStack, inventory, gridInventory, cursorStack, registries);
-                if (recipeToUse == null) {
+            if (!recipe.fits(gridInventory.getWidth(), gridInventory.getHeight())) {
+                return;
+            }
+            DynamicRegistryManager.Immutable registries = player.getServer().getRegistryManager();
+            ItemStack resultStack = recipe.getOutput(registries).copy();
+            ItemStack cursorStack = handler.getCursorStack();
+
+            CraftingRecipe recipeToUse = selectCraftableVariant(recipeManager, resultStack, inventory, gridInventory, cursorStack, registries);
+            if (recipeToUse == null) {
+                return;
+            }
+
+            if (payload.isShiftPressed()) {
+                if (!placeInInventoryOrCursor(inventory, resultStack, player)) {
                     return;
                 }
-
-                if (payload.isShiftPressed()) {
-                    if (!placeInInventoryOrCursor(inventory, resultStack, player)) {
-                        return;
-                    }
+            } else {
+                if (cursorStack.isEmpty()) {
+                    handler.setCursorStack(resultStack);
+                    // sendSlotUpdate(player, handler.syncId, -1, resultStack);
+                } else if (areStacksEqualWithComponents(cursorStack, resultStack)) {
+                    cursorStack.increment(resultStack.getCount());
+                    handler.setCursorStack(cursorStack);
+                    // sendSlotUpdate(player, handler.syncId, -1, cursorStack);
                 } else {
-                    if (cursorStack.isEmpty()) {
-                        handler.setCursorStack(resultStack);
-                        // sendSlotUpdate(player, handler.syncId, -1, resultStack);
-                    } else if (areStacksEqualWithComponents(cursorStack, resultStack)) {
-                        cursorStack.increment(resultStack.getCount());
-                        handler.setCursorStack(cursorStack);
-                        // sendSlotUpdate(player, handler.syncId, -1, cursorStack);
-                    } else {
-                        return;
-                    }
+                    return;
                 }
+            }
 
-                if (hasAllIngredients(inventory, gridInventory, recipeToUse, cursorStack)) {
-                    consumeIngredients(recipeToUse, gridInventory, inventory, cursorStack);
-                    clearGridAndSync(handler, player);
-                }
+            if (hasAllIngredients(inventory, gridInventory, recipeToUse, cursorStack)) {
+                consumeIngredients(recipeToUse, gridInventory, inventory, cursorStack);
+                clearGridAndSync(handler, gridInventory, player);
             }
         }
     }
@@ -87,6 +101,7 @@ public class CraftSenseNetworking {
         }
 
         List<CraftingRecipe> candidates = recipeManager.listAllOfType(RecipeType.CRAFTING).stream()
+                .filter(r -> r.fits(gridInventory.getWidth(), gridInventory.getHeight()))
                 .filter(r -> areStacksEqualWithComponents(r.getOutput(registries).copy(), desiredResult))
                 .toList();
 
@@ -203,9 +218,7 @@ public class CraftSenseNetworking {
         }
     }
 
-    private static void clearGridAndSync(CraftingScreenHandler handler, ServerPlayerEntity player) {
-        RecipeInputInventory gridInventory = ((CraftingScreenHandlerAccessor) handler).getInput();
-
+    private static void clearGridAndSync(AbstractRecipeScreenHandler<?> handler, RecipeInputInventory gridInventory, ServerPlayerEntity player) {
         for (int i = 0; i < gridInventory.size(); i++) {
             ItemStack currentStack = gridInventory.getStack(i);
             if (currentStack.isEmpty()) {

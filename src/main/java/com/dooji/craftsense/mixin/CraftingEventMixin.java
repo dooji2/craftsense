@@ -10,6 +10,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.screen.CraftingScreenHandler;
+import net.minecraft.screen.PlayerScreenHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
@@ -24,7 +25,7 @@ public abstract class CraftingEventMixin {
 
     @Inject(method = "onCraft", at = @At("HEAD"))
     private void onCraft(ItemStack stack, World world, PlayerEntity player, CallbackInfo ci) {
-        if (!world.isClient && player instanceof ServerPlayerEntity serverPlayer && serverPlayer.currentScreenHandler instanceof CraftingScreenHandler) {
+        if (!world.isClient && player instanceof ServerPlayerEntity serverPlayer && (serverPlayer.currentScreenHandler instanceof CraftingScreenHandler || serverPlayer.currentScreenHandler instanceof PlayerScreenHandler)) {
             Identifier channelId = new Identifier(CraftSense.MOD_ID, "record_craft");
             PacketByteBuf packetBuffer = RecordCraftPayload.createPacket(stack.copy());
 
