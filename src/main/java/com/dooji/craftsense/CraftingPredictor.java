@@ -6,10 +6,10 @@ import com.dooji.craftsense.manager.CraftSenseTracker;
 
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.RecipeInputInventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.recipe.*;
 import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.Pair;
 import net.minecraft.world.World;
 import net.minecraft.util.collection.DefaultedList;
@@ -122,10 +122,10 @@ public class CraftingPredictor {
 
         String mostCraftedItem = null;
         int highestItemCount = -1;
-        for (Map.Entry<String, Integer> entry : habitsConfig.itemCraftCount.entrySet()) {
-            String itemName = entry.getKey();
-            if (CategoryManager.getCategory(Registries.ITEM.get(new Identifier(itemName))).equals(bestCategory)) {
-                int itemCount = entry.getValue();
+        for (Item item : Registries.ITEM) {
+            String itemName = item.getTranslationKey();
+            if (CategoryManager.getCategory(item).equals(bestCategory)) {
+                int itemCount = habitsConfig.getItemCraftCount(itemName);
                 if (itemCount > highestItemCount) {
                     mostCraftedItem = itemName;
                     highestItemCount = itemCount;
@@ -136,6 +136,7 @@ public class CraftingPredictor {
         List<ItemStack> availableItems = getAvailableItems(playerInventory, cursorStack, input);
         List<CraftingRecipe> filteredRecipes = recipes.stream()
                 .filter(recipe -> recipe.fits(input.getWidth(), input.getHeight()))
+                .filter(recipe -> !recipe.getIngredients().isEmpty())
                 .filter(recipe -> hasRequiredIngredients(recipe, availableItems))
                 .toList();
 
@@ -262,7 +263,7 @@ public class CraftingPredictor {
             hashBuilder.append(cursorStack.getTranslationKey()).append(":").append(cursorStack.getCount());
         }
 
-        return hashBuilder.toString();
+        return hashBuilder.append(habitsConfig.itemCraftCount).append(habitsConfig.getLastCraftedItem()).toString();
     }
 
     public Pair<Integer, Boolean> matchShapedRecipe(ShapedRecipe recipe, RecipeInputInventory input, List<ItemStack> availableItems, int offsetX, int offsetY) {
@@ -450,7 +451,7 @@ public class CraftingPredictor {
             ItemStack result = recipe.getOutput(world.getRegistryManager());
             String resultTranslationKey = result.getTranslationKey();
 
-            if (resultTranslationKey.equals(lastCraftedItem) && recipe.fits(input.getWidth(), input.getHeight())) {
+            if (resultTranslationKey.equals(lastCraftedItem) && recipe.fits(input.getWidth(), input.getHeight()) && !recipe.getIngredients().isEmpty()) {
                 int score = calculateMatchScore(recipe, input, playerInventory, cursorStack);
                 if (score > 0) {
                     return Optional.of(recipe);

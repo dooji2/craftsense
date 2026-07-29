@@ -2,8 +2,6 @@ package com.dooji.craftsense.mixin;
 
 import com.dooji.craftsense.CraftSense;
 import com.dooji.craftsense.CraftingPredictor;
-import com.dooji.craftsense.manager.CategoryHabitsTracker;
-import com.dooji.craftsense.manager.CategoryManager;
 import com.dooji.craftsense.network.payloads.CraftItemPayload;
 
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -23,7 +21,6 @@ import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.RecipeInputInventory;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.recipe.*;
 import net.minecraft.screen.AbstractRecipeScreenHandler;
@@ -158,20 +155,11 @@ public abstract class CraftingScreenMixin {
         long cooldownDuration = 100;
         long currentTime = System.currentTimeMillis();
 
-        if (currentTime - lastMouseClickTime < cooldownDuration) {
-            cir.setReturnValue(false);
-            return;
-        }
-
-        lastMouseClickTime = currentTime;
-
         if (isMouseOverSlot((int) mouseX, (int) mouseY, resultSlotX, resultSlotY)) {
             PlayerInventory playerInventory = client.player.getInventory();
             World world = client.world;
 
             AbstractRecipeScreenHandler<?> handler = (AbstractRecipeScreenHandler<?>) ((HandledScreen<?>) client.currentScreen).getScreenHandler();
-            ItemStack cursorStack = handler.getCursorStack();
-
             RecipeInputInventory input;
             if (handler instanceof PlayerScreenHandler playerHandler) {
                 input = playerHandler.getCraftingInput();
@@ -185,24 +173,20 @@ public abstract class CraftingScreenMixin {
                     : predictor.suggestRecipe(input, playerInventory, handler.getCursorStack(), world);
 
             if (optionalRecipe.isPresent()) {
+                if (currentTime - lastMouseClickTime < cooldownDuration) {
+                    cir.setReturnValue(true);
+                    return;
+                }
+
                 CraftingRecipe recipe = optionalRecipe.get();
                 Identifier recipeId = findRecipeId(world.getRecipeManager(), recipe);
 
                 if (recipeId != null) {
-                    ItemStack resultStack = recipe.getOutput(world.getRegistryManager()).copy();
-
-                    if (!cursorStack.isEmpty() && !isShiftPressed && (!cursorStack.isStackable() || !areStacksEqualWithComponents(cursorStack, resultStack)) || resultStack.getItem() == Items.AIR) {
-                        return;
-                    }
-
-                    CategoryHabitsTracker habitsConfig = CategoryHabitsTracker.getInstance();
-                    String category = CategoryManager.getCategory(resultStack.getItem());
-                    habitsConfig.recordCraft(category, resultStack.getItem().getTranslationKey());
-
                     Identifier channelId = new Identifier(CraftSense.MOD_ID, "craft_item");
                     PacketByteBuf packetBuffer = CraftItemPayload.createPacket(recipeId.toString(), isShiftPressed);
 
                     ClientPlayNetworking.send(channelId, packetBuffer);
+                    lastMouseClickTime = currentTime;
                     if (CraftSense.configManager.isFirstTime() && client.currentScreen instanceof CraftingScreen) {
                         CraftSense.configManager.toggleFirstTime();
                     }
@@ -370,18 +354,6 @@ public abstract class CraftingScreenMixin {
         vertexConsumer.vertex(matrix, x2, y1, z).color(255, 255, 255, (int)(alpha * 255)).next();
 
         context.draw();
-    }
-
-    @Unique
-    private boolean areStacksEqualWithComponents(ItemStack stack1, ItemStack stack2) {
-        if (!ItemStack.areItemsEqual(stack1, stack2)) {
-            return false;
-        }
-
-        if (stack1.hasNbt() && stack2.hasNbt()) {
-            return Objects.equals(stack1.getNbt(), stack2.getNbt());
-        }
-        return !stack1.hasNbt() && !stack2.hasNbt();
     }
 
     @Unique
