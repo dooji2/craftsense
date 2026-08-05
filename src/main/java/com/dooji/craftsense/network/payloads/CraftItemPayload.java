@@ -3,7 +3,7 @@ package com.dooji.craftsense.network.payloads;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.network.PacketByteBuf;
 
-public record CraftItemPayload(String recipeId, Boolean isShiftPressed) {
+public record CraftItemPayload(String recipeId, boolean isShiftPressed) {
 
     public static CraftItemPayload read(PacketByteBuf buf) {
         return new CraftItemPayload(buf.readString(), buf.readBoolean());
@@ -14,7 +14,7 @@ public record CraftItemPayload(String recipeId, Boolean isShiftPressed) {
         buf.writeBoolean(payload.isShiftPressed());
     }
 
-    public static PacketByteBuf createPacket(String recipeId, Boolean isShiftPressed) {
+    public static PacketByteBuf createPacket(String recipeId, boolean isShiftPressed) {
         PacketByteBuf buf = PacketByteBufs.create();
         write(buf, new CraftItemPayload(recipeId, isShiftPressed));
         return buf;

@@ -34,6 +34,7 @@ import net.minecraft.util.Pair;
 import net.minecraft.world.World;
 
 import org.jetbrains.annotations.Nullable;
+
 import org.joml.Matrix4f;
 import org.joml.Vector2i;
 
@@ -46,7 +47,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.*;
 
-@Mixin(HandledScreen.class)
+@Mixin({CraftingScreen.class, InventoryScreen.class})
 public abstract class CraftingScreenMixin {
 
     @Unique
@@ -69,33 +70,30 @@ public abstract class CraftingScreenMixin {
 
     @Inject(method = "render", at = @At("TAIL"))
     private void renderCraftingPrediction(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        MinecraftClient client = MinecraftClient.getInstance();
-
-        if (!(client.currentScreen instanceof CraftingScreen || client.currentScreen instanceof InventoryScreen)) {
-            return;
-        } else if (((RecipeBookProvider) client.currentScreen).getRecipeBookWidget().isOpen()) {
+        if (((RecipeBookProvider) (Object) this).getRecipeBookWidget().isOpen()) {
             return;
         }
 
+        MinecraftClient client = MinecraftClient.getInstance();
         PlayerInventory playerInventory = client.player.getInventory();
         World world = client.world;
 
-        AbstractRecipeScreenHandler<?> handler = (AbstractRecipeScreenHandler<?>) ((HandledScreen<?>) client.currentScreen).getScreenHandler();
+        AbstractRecipeScreenHandler<?> handler = (AbstractRecipeScreenHandler<?>) ((HandledScreen<?>) (Object) this).getScreenHandler();
         RecipeInputInventory input;
         if (handler instanceof PlayerScreenHandler playerHandler) {
             input = playerHandler.getCraftingInput();
         } else {
             input = ((CraftingScreenHandlerAccessor) handler).getInput();
         }
+
         ItemStack cursorStack = handler.getCursorStack();
-
         CraftingPredictor predictor = CraftingPredictor.getInstance(world.getRecipeManager());
-
         String currentStateHash = predictor.calculateInputHash(input, playerInventory, cursorStack);
 
         if (!currentStateHash.equals(lastGridHash)) {
             lastGridHash = currentStateHash;
             cachedLastCraftedRecipe = predictor.suggestLastCraftedItem(input, playerInventory, cursorStack, world);
+
             if (cachedLastCraftedRecipe.isEmpty()) {
                 cachedSuggestedRecipe = predictor.suggestRecipe(input, playerInventory, cursorStack, world);
             } else {
@@ -143,12 +141,9 @@ public abstract class CraftingScreenMixin {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void onSuggestedRecipeClick(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
-        MinecraftClient client = MinecraftClient.getInstance();
         boolean isShiftPressed = InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow().getHandle(), InputUtil.GLFW_KEY_LEFT_SHIFT);
 
-        if (!(client.currentScreen instanceof CraftingScreen || client.currentScreen instanceof InventoryScreen)) {
-            return;
-        } else if (((RecipeBookProvider) client.currentScreen).getRecipeBookWidget().isOpen()) {
+        if (((RecipeBookProvider) (Object) this).getRecipeBookWidget().isOpen()) {
             return;
         }
 
@@ -156,18 +151,22 @@ public abstract class CraftingScreenMixin {
         long currentTime = System.currentTimeMillis();
 
         if (isMouseOverSlot((int) mouseX, (int) mouseY, resultSlotX, resultSlotY)) {
+            MinecraftClient client = MinecraftClient.getInstance();
             PlayerInventory playerInventory = client.player.getInventory();
             World world = client.world;
 
-            AbstractRecipeScreenHandler<?> handler = (AbstractRecipeScreenHandler<?>) ((HandledScreen<?>) client.currentScreen).getScreenHandler();
+            AbstractRecipeScreenHandler<?> handler = (AbstractRecipeScreenHandler<?>) ((HandledScreen<?>) (Object) this).getScreenHandler();
+
             RecipeInputInventory input;
             if (handler instanceof PlayerScreenHandler playerHandler) {
                 input = playerHandler.getCraftingInput();
             } else {
                 input = ((CraftingScreenHandlerAccessor) handler).getInput();
             }
+
             CraftingPredictor predictor = CraftingPredictor.getInstance(world.getRecipeManager());
             Optional<CraftingRecipe> lastCraftedRecipe = predictor.suggestLastCraftedItem(input, playerInventory, handler.getCursorStack(), world);
+
             Optional<CraftingRecipe> optionalRecipe = lastCraftedRecipe.isPresent()
                     ? lastCraftedRecipe
                     : predictor.suggestRecipe(input, playerInventory, handler.getCursorStack(), world);
@@ -366,7 +365,7 @@ public abstract class CraftingScreenMixin {
     private Identifier findRecipeId(RecipeManager recipeManager, CraftingRecipe targetRecipe) {
         List<? extends Recipe<?>> craftingRecipes = recipeManager.listAllOfType(RecipeType.CRAFTING);
         for (Recipe<?> recipe : craftingRecipes) {
-            if (recipe instanceof CraftingRecipe && recipe.equals(targetRecipe)) {
+            if (recipe instanceof CraftingRecipe && recipe == targetRecipe) {
                 return recipe.getId();
             }
         }
