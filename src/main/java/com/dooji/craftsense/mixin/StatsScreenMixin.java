@@ -1,56 +1,50 @@
 package com.dooji.craftsense.mixin;
 
 import com.dooji.craftsense.ui.CraftSenseStatsListWidget;
+import com.dooji.craftsense.ui.CraftSenseStatsTab;
 
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.StatsScreen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.DirectionalLayoutWidget;
-import net.minecraft.client.gui.widget.ThreePartsLayoutWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.components.tabs.Tab;
+import net.minecraft.client.gui.components.tabs.TabNavigationBar;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.achievement.StatsScreen;
+import net.minecraft.network.chat.Component;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import java.util.Arrays;
 
 @Mixin(StatsScreen.class)
 public abstract class StatsScreenMixin extends Screen {
     @Shadow
-    private ThreePartsLayoutWidget layout;
+    private TabNavigationBar tabNavigationBar;
 
     @Unique
     private CraftSenseStatsListWidget craftSenseStats;
 
+    @Unique
+    private Tab craftSenseTab;
+
     protected StatsScreenMixin() {
-        super(Text.empty());
+        super(Component.empty());
     }
 
-    @Inject(method = "createLists", at = @At("TAIL"))
-    private void createCraftSenseStats(CallbackInfo ci) {
-        craftSenseStats = new CraftSenseStatsListWidget(this.client, this.width, this.height);
+    @ModifyArg(method = "onStatsUpdated", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/tabs/TabNavigationBar$Builder;addTabs([Lnet/minecraft/client/gui/components/tabs/Tab;)Lnet/minecraft/client/gui/components/tabs/TabNavigationBar$Builder;"), index = 0)
+    private Tab[] addCraftSenseTab(Tab[] tabs) {
+        craftSenseStats = new CraftSenseStatsListWidget(this.minecraft, this.width, this.height);
+        Tab[] statsTabs = Arrays.copyOf(tabs, tabs.length + 1);
+        craftSenseTab = new CraftSenseStatsTab(craftSenseStats);
+        statsTabs[tabs.length] = craftSenseTab;
+        return statsTabs;
     }
 
-    @Inject(method = "createButtons", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/widget/ThreePartsLayoutWidget;forEachChild(Ljava/util/function/Consumer;)V"))
-    private void addCraftSenseTab(CallbackInfo ci) {
-        layout.forEachElement(widget -> {
-            if (widget instanceof DirectionalLayoutWidget footer) {
-                footer.forEachElement(child -> {
-                    if (child instanceof DirectionalLayoutWidget tabs) {
-                        tabs.forEachElement(tab -> {
-                            if (tab instanceof ButtonWidget button) {
-                                button.setWidth(75);
-                            }
-                        });
-
-                        ButtonWidget craftSenseButton = ButtonWidget.builder(Text.translatable("screen.craftsense.stats"), button -> ((StatsScreen) (Object) this).selectStatList(craftSenseStats)).width(75).build();
-                        craftSenseButton.active = !craftSenseStats.children().isEmpty();
-                        tabs.add(craftSenseButton);
-                    }
-                });
-            }
-        });
+    @Inject(method = "onStatsUpdated", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/tabs/TabNavigationBar;selectTab(IZ)V", shift = At.Shift.AFTER))
+    private void setCraftSenseTabActive(CallbackInfo ci) {
+        tabNavigationBar.setTabActiveState(tabNavigationBar.getTabs().indexOf(craftSenseTab), !craftSenseStats.children().isEmpty());
     }
 }

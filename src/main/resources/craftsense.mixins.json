@@ -4,14 +4,14 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "CraftingEventMixin",
-    "CraftingScreenHandlerAccessor",
-    "RecipeManagerAccessor"
+    "CraftingScreenHandlerAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
   },
   "client": [
     "CraftingScreenMixin",
+    "RecipeBookScreenAccessor",
     "HandledScreenAccessor",
     "StatsScreenMixin"
   ]

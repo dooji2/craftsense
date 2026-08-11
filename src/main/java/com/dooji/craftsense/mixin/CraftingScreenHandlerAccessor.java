@@ -1,14 +1,14 @@
 package com.dooji.craftsense.mixin;
 
-import net.minecraft.inventory.RecipeInputInventory;
-import net.minecraft.screen.CraftingScreenHandler;
+import net.minecraft.world.inventory.AbstractCraftingMenu;
+import net.minecraft.world.inventory.CraftingContainer;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-@Mixin(CraftingScreenHandler.class)
+@Mixin(AbstractCraftingMenu.class)
 public interface CraftingScreenHandlerAccessor {
     
-    @Accessor("input")
-    RecipeInputInventory getInput();
+    @Accessor("craftSlots")
+    CraftingContainer getCraftingInventory();
 }
