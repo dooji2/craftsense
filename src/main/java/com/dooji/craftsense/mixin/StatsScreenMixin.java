@@ -3,8 +3,8 @@ package com.dooji.craftsense.mixin;
 import com.dooji.craftsense.ui.CraftSenseStatsListWidget;
 import com.dooji.craftsense.ui.CraftSenseStatsTab;
 
+import net.minecraft.client.gui.components.tabs.MenuTabBar;
 import net.minecraft.client.gui.components.tabs.Tab;
-import net.minecraft.client.gui.components.tabs.TabNavigationBar;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.achievement.StatsScreen;
 import net.minecraft.network.chat.Component;
@@ -22,7 +22,7 @@ import java.util.Arrays;
 @Mixin(StatsScreen.class)
 public abstract class StatsScreenMixin extends Screen {
     @Shadow
-    private TabNavigationBar tabNavigationBar;
+    private MenuTabBar tabNavigationBar;
 
     @Unique
     private CraftSenseStatsListWidget craftSenseStats;
@@ -34,7 +34,7 @@ public abstract class StatsScreenMixin extends Screen {
         super(Component.empty());
     }
 
-    @ModifyArg(method = "onStatsUpdated", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/tabs/TabNavigationBar$Builder;addTabs([Lnet/minecraft/client/gui/components/tabs/Tab;)Lnet/minecraft/client/gui/components/tabs/TabNavigationBar$Builder;"), index = 0)
+    @ModifyArg(method = "onStatsUpdated", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/tabs/MenuTabBar$Builder;addTabs([Lnet/minecraft/client/gui/components/tabs/Tab;)Lnet/minecraft/client/gui/components/tabs/MenuTabBar$Builder;"), index = 0)
     private Tab[] addCraftSenseTab(Tab[] tabs) {
         craftSenseStats = new CraftSenseStatsListWidget(this.minecraft, this.width, this.height);
         Tab[] statsTabs = Arrays.copyOf(tabs, tabs.length + 1);
@@ -43,7 +43,7 @@ public abstract class StatsScreenMixin extends Screen {
         return statsTabs;
     }
 
-    @Inject(method = "onStatsUpdated", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/tabs/TabNavigationBar;selectTab(IZ)V", shift = At.Shift.AFTER))
+    @Inject(method = "onStatsUpdated", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/tabs/MenuTabBar;selectTab(IZ)V", shift = At.Shift.AFTER))
     private void setCraftSenseTabActive(CallbackInfo ci) {
         tabNavigationBar.setTabActiveState(tabNavigationBar.getTabs().indexOf(craftSenseTab), !craftSenseStats.children().isEmpty());
     }

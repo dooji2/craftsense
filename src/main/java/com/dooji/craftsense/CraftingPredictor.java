@@ -6,7 +6,6 @@ import com.dooji.craftsense.manager.CraftSenseTracker;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
-import net.minecraft.util.Tuple;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.item.Item;
@@ -279,8 +278,8 @@ public class CraftingPredictor {
 
             for (int offsetX = 0; offsetX <= maxOffsetX; offsetX++) {
                 for (int offsetY = 0; offsetY <= maxOffsetY; offsetY++) {
-                    Tuple<Integer, Boolean> matchResult = matchShapedRecipe(shapedRecipe, input, availableItems, offsetX, offsetY);
-                    int alignmentScore = matchResult.getA();
+                    Map.Entry<Integer, Boolean> matchResult = matchShapedRecipe(shapedRecipe, input, availableItems, offsetX, offsetY);
+                    int alignmentScore = matchResult.getKey();
                     if (alignmentScore > score) {
                         score = alignmentScore;
                         if (score == Integer.MAX_VALUE) {
@@ -317,7 +316,7 @@ public class CraftingPredictor {
         return hashBuilder.append(habitsConfig.itemCraftCount).append(habitsConfig.getLastCraftedItem()).toString();
     }
 
-    public Tuple<Integer, Boolean> matchShapedRecipe(ShapedRecipe recipe, CraftingContainer input, List<ItemStack> availableItems, int offsetX, int offsetY) {
+    public Map.Entry<Integer, Boolean> matchShapedRecipe(ShapedRecipe recipe, CraftingContainer input, List<ItemStack> availableItems, int offsetX, int offsetY) {
         int bestScore = -1;
         boolean bestMirrored = false;
 
@@ -401,7 +400,7 @@ public class CraftingPredictor {
             if (!mismatch) {
                 long nonEmptyIngredientCount = ingredients.stream().filter(Optional::isPresent).count();
                 if (score == nonEmptyIngredientCount * 2) {
-                    return new Tuple<>(Integer.MAX_VALUE, mirrored);
+                    return Map.entry(Integer.MAX_VALUE, mirrored);
                 }
 
                 if (score > bestScore) {
@@ -411,7 +410,7 @@ public class CraftingPredictor {
             }
         }
 
-        return new Tuple<>(bestScore, bestMirrored);
+        return Map.entry(bestScore, bestMirrored);
     }
 
     private int matchShapelessRecipe(CraftingRecipe recipe, CraftingContainer input, List<ItemStack> availableItems) {

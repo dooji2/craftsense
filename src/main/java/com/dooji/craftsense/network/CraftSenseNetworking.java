@@ -16,6 +16,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractCraftingMenu;
 import net.minecraft.world.inventory.CraftingContainer;
@@ -36,10 +37,10 @@ import java.util.*;
 
 public class CraftSenseNetworking {
     public static void init() {
-        PayloadTypeRegistry.playC2S().register(CraftItemPayload.ID, CraftItemPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(RecipesRequestPayload.ID, RecipesRequestPayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(RecordCraftPayload.ID, RecordCraftPayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(RecipesPayload.ID, RecipesPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(CraftItemPayload.ID, CraftItemPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(RecipesRequestPayload.ID, RecipesRequestPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(RecordCraftPayload.ID, RecordCraftPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(RecipesPayload.ID, RecipesPayload.CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(CraftItemPayload.ID, (payload, context) -> {
             context.server().execute(() -> handleCraftItemPayload(payload, context.player()));
@@ -143,7 +144,7 @@ public class CraftSenseNetworking {
 
         for (ItemStack remainder : remainders) {
             if (!remainder.isEmpty()) {
-                inventory.placeItemBackInInventory(remainder.copy());
+                inventory.placeItemBackInInventory(remainder.copy(), Prediction.SERVER_ONLY);
             }
         }
 
@@ -160,7 +161,7 @@ public class CraftSenseNetworking {
                 return ItemStack.EMPTY;
             }
 
-            ItemStack resultStack = recipe.assemble(input, world.registryAccess());
+            ItemStack resultStack = recipe.assemble(input);
             if (resultStack.isEmpty()) {
                 return ItemStack.EMPTY;
             }

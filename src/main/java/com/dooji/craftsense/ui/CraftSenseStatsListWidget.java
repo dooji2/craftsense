@@ -3,7 +3,7 @@ package com.dooji.craftsense.ui;
 import com.dooji.craftsense.manager.CategoryHabitsTracker;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -44,11 +44,11 @@ public class CraftSenseStatsListWidget extends ObjectSelectionList<CraftSenseSta
     }
 
     @Override
-    protected void renderListBackground(GuiGraphics context) {
+    protected void extractListBackground(GuiGraphicsExtractor context) {
     }
 
     @Override
-    protected void renderListSeparators(GuiGraphics context) {
+    protected void extractListSeparators(GuiGraphicsExtractor context) {
     }
 
     public class Entry extends ObjectSelectionList.Entry<Entry> {
@@ -66,7 +66,7 @@ public class CraftSenseStatsListWidget extends ObjectSelectionList<CraftSenseSta
         }
 
         @Override
-        public void renderContent(GuiGraphics context, int mouseX, int mouseY, boolean hovered, float delta) {
+        public void extractContent(GuiGraphicsExtractor context, int mouseX, int mouseY, boolean hovered, float delta) {
             int x = getX();
             int y = getY();
             int width = getWidth();
@@ -78,16 +78,16 @@ public class CraftSenseStatsListWidget extends ObjectSelectionList<CraftSenseSta
             int valueX = x + width - minecraft.font.width(value) - 3;
 
             context.blitSprite(RenderPipelines.GUI_TEXTURED, Identifier.withDefaultNamespace("container/slot"), getContentX(), getContentY(), 18, 18);
-            context.renderFakeItem(item.getDefaultInstance(), getContentX() + 1, getContentY() + 1);
+            context.fakeItem(item.getDefaultInstance(), getContentX() + 1, getContentY() + 1);
             context.enableScissor(x + 24, y, valueX - 4, y + height);
-            context.drawString(minecraft.font, item.getName(), x + 24, textY, color);
+            context.text(minecraft.font, item.getName(item.getDefaultInstance()), x + 24, textY, color);
             context.disableScissor();
-            context.drawString(minecraft.font, value, valueX, textY, color);
+            context.text(minecraft.font, value, valueX, textY, color);
         }
 
         @Override
         public Component getNarration() {
-            return Component.translatable("narrator.select", Component.empty().append(item.getName()).append(" " + count));
+            return Component.translatable("narrator.select", Component.empty().append(item.getName(item.getDefaultInstance())).append(" " + count));
         }
     }
 }
