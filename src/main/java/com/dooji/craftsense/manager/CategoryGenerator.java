@@ -7,9 +7,9 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import net.minecraft.item.Item;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -35,12 +35,12 @@ public class CategoryGenerator {
     public static void generateCategories() {
         List<ItemData> items = new ArrayList<>();
 
-        for (Item item : Registries.ITEM) {
-            Identifier itemId = Registries.ITEM.getId(item);
+        for (Item item : BuiltInRegistries.ITEM) {
+            ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(item);
             String itemName = itemId.toString();
             String itemPath = itemId.getPath().toUpperCase();
 
-            if (itemId.equals(Identifier.ofVanilla("air"))) continue;
+            if (itemId.equals(ResourceLocation.withDefaultNamespace("air"))) continue;
 
             List<String> tokens;
 

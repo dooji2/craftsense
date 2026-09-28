@@ -14,5 +14,6 @@
     "CraftingScreenMixin",
     "HandledScreenAccessor",
     "StatsScreenMixin"
-  ]
+  ],
+  "minVersion": "0.8"
 }

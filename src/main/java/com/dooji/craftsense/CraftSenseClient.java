@@ -2,24 +2,26 @@ package com.dooji.craftsense;
 
 import com.dooji.craftsense.manager.CategoryGenerator;
 import com.dooji.craftsense.manager.CraftSenseTracker;
-import com.dooji.craftsense.network.CraftSenseClientNetworking;
 
-import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.client.Minecraft;
 
-@Environment(EnvType.CLIENT)
-public class CraftSenseClient implements ClientModInitializer {
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.common.NeoForge;
+
+@EventBusSubscriber(modid = CraftSense.MOD_ID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+public class CraftSenseClient {
     private static boolean hasEnteredWorld = false;
 
-    @Override
-    public void onInitializeClient() {
+    @SubscribeEvent
+    public static void onClientSetup(FMLClientSetupEvent event) {
         CategoryGenerator.generateCategories();
-        CraftSenseClientNetworking.init();
 
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (client.player != null && !hasEnteredWorld) {
+        NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post tickEvent) -> {
+            if (Minecraft.getInstance().player != null && !hasEnteredWorld) {
                 hasEnteredWorld = true;
                 CraftSenseTracker.checkPlayerConditions();
             }

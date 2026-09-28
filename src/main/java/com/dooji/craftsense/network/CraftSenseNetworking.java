@@ -4,42 +4,46 @@ import com.dooji.craftsense.mixin.CraftingScreenHandlerAccessor;
 import com.dooji.craftsense.network.payloads.CraftItemPayload;
 import com.dooji.craftsense.network.payloads.RecordCraftPayload;
 
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.core.NonNullList;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.CraftingContainer;
+import net.minecraft.world.inventory.CraftingMenu;
+import net.minecraft.world.inventory.InventoryMenu;
+import net.minecraft.world.inventory.RecipeBookMenu;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.world.item.crafting.ShapedRecipe;
+import net.minecraft.world.level.Level;
 
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.RecipeInputInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.recipe.CraftingRecipe;
-import net.minecraft.recipe.Ingredient;
-import net.minecraft.recipe.RecipeManager;
-import net.minecraft.recipe.ShapedRecipe;
-import net.minecraft.recipe.input.CraftingRecipeInput;
-import net.minecraft.screen.AbstractRecipeScreenHandler;
-import net.minecraft.screen.CraftingScreenHandler;
-import net.minecraft.screen.PlayerScreenHandler;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.collection.DefaultedList;
-import net.minecraft.world.World;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 import java.util.*;
 
+@EventBusSubscriber(bus = EventBusSubscriber.Bus.MOD)
 public class CraftSenseNetworking {
-    public static void init() {
-        PayloadTypeRegistry.playC2S().register(CraftItemPayload.ID, CraftItemPayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(RecordCraftPayload.ID, RecordCraftPayload.CODEC);
+    private static final String PROTOCOL_VERSION = "1";
 
-        ServerPlayNetworking.registerGlobalReceiver(CraftItemPayload.ID, (payload, context) -> {
-            context.server().execute(() -> handleCraftItemPayload(payload, context.player()));
-        });
+    @SubscribeEvent
+    public static void register(RegisterPayloadHandlersEvent event) {
+        PayloadRegistrar registrar = event.registrar(PROTOCOL_VERSION);
+
+        registrar.playToServer(CraftItemPayload.ID, CraftItemPayload.CODEC, (payload, context) -> handleCraftItemPayload(payload, (ServerPlayer) context.player()));
+        registrar.playToClient(RecordCraftPayload.ID, RecordCraftPayload.CODEC, (payload, context) -> CraftSenseClientNetworking.recordCraft(payload));
     }
 
-    private static void handleCraftItemPayload(CraftItemPayload payload, ServerPlayerEntity player) {
-        Identifier recipeId = Identifier.of(payload.recipeId());
+    private static void handleCraftItemPayload(CraftItemPayload payload, ServerPlayer player) {
+        ResourceLocation recipeId = ResourceLocation.parse(payload.recipeId());
 
         RecipeManager recipeManager = player.getServer().getRecipeManager();
-        Optional<CraftingRecipe> recipeOptional = recipeManager.get(recipeId)
+        Optional<CraftingRecipe> recipeOptional = recipeManager.byKey(recipeId)
                 .map(recipeEntry -> recipeEntry.value())
                 .filter(recipe -> recipe instanceof CraftingRecipe)
                 .map(recipe -> (CraftingRecipe) recipe);
@@ -49,96 +53,96 @@ public class CraftSenseNetworking {
         }
 
         CraftingRecipe recipe = recipeOptional.get();
-        AbstractRecipeScreenHandler<?, ?> handler;
-        RecipeInputInventory gridInventory;
-        if (player.currentScreenHandler instanceof PlayerScreenHandler playerHandler) {
+        RecipeBookMenu<?, ?> handler;
+        CraftingContainer gridInventory;
+        if (player.containerMenu instanceof InventoryMenu playerHandler) {
             handler = playerHandler;
-            gridInventory = playerHandler.getCraftingInput();
-        } else if (player.currentScreenHandler instanceof CraftingScreenHandler craftingHandler) {
+            gridInventory = playerHandler.getCraftSlots();
+        } else if (player.containerMenu instanceof CraftingMenu craftingHandler) {
             handler = craftingHandler;
             gridInventory = ((CraftingScreenHandlerAccessor) craftingHandler).getInput();
         } else {
             return;
         }
 
-        if (!recipe.fits(gridInventory.getWidth(), gridInventory.getHeight()) || recipe.getIngredients().isEmpty()) {
+        if (!recipe.canCraftInDimensions(gridInventory.getWidth(), gridInventory.getHeight()) || recipe.getIngredients().isEmpty()) {
             return;
         }
 
-        PlayerInventory inventory = player.getInventory();
+        Inventory inventory = player.getInventory();
         List<ItemStack> sources = new ArrayList<>();
-        for (int i = 0; i < gridInventory.size(); i++) {
-            sources.add(gridInventory.getStack(i));
+        for (int i = 0; i < gridInventory.getContainerSize(); i++) {
+            sources.add(gridInventory.getItem(i));
         }
-        sources.add(handler.getCursorStack());
-        sources.addAll(inventory.main);
+        sources.add(handler.getCarried());
+        sources.addAll(inventory.items);
 
         int[] used = new int[sources.size()];
         int[] selected = new int[recipe.getIngredients().size()];
         Arrays.fill(selected, -1);
-        ItemStack resultStack = selectIngredients(recipe, sources, used, selected, 0, gridInventory, player.getWorld(), inventory, payload.isShiftPressed());
+        ItemStack resultStack = selectIngredients(recipe, sources, used, selected, 0, gridInventory, player.level(), inventory, payload.isShiftPressed());
         if (resultStack.isEmpty()) {
             return;
         }
 
-        CraftingRecipeInput input = createRecipeInput(recipe, sources, selected, gridInventory);
-        DefaultedList<ItemStack> remainders = recipe.getRemainder(input);
+        CraftingInput input = createRecipeInput(recipe, sources, selected, gridInventory);
+        NonNullList<ItemStack> remainders = recipe.getRemainingItems(input);
 
-        for (int i = 0; i < gridInventory.size(); i++) {
+        for (int i = 0; i < gridInventory.getContainerSize(); i++) {
             if (used[i] > 0) {
-                gridInventory.removeStack(i, used[i]);
+                gridInventory.removeItem(i, used[i]);
             }
         }
 
-        int cursorIndex = gridInventory.size();
-        for (int i = 0; i < PlayerInventory.MAIN_SIZE; i++) {
-            inventory.getStack(i).decrement(used[cursorIndex + 1 + i]);
+        int cursorIndex = gridInventory.getContainerSize();
+        for (int i = 0; i < Inventory.INVENTORY_SIZE; i++) {
+            inventory.getItem(i).shrink(used[cursorIndex + 1 + i]);
         }
 
-        ItemStack cursorStack = handler.getCursorStack().copy();
-        cursorStack.decrement(used[cursorIndex]);
+        ItemStack cursorStack = handler.getCarried().copy();
+        cursorStack.shrink(used[cursorIndex]);
         if (payload.isShiftPressed()) {
-            handler.setCursorStack(cursorStack);
-            inventory.insertStack(resultStack.copy());
+            handler.setCarried(cursorStack);
+            inventory.add(resultStack.copy());
         } else if (cursorStack.isEmpty()) {
-            handler.setCursorStack(resultStack.copy());
+            handler.setCarried(resultStack.copy());
         } else {
-            cursorStack.increment(resultStack.getCount());
-            handler.setCursorStack(cursorStack);
+            cursorStack.grow(resultStack.getCount());
+            handler.setCarried(cursorStack);
         }
 
         for (ItemStack remainder : remainders) {
             if (!remainder.isEmpty()) {
-                inventory.offerOrDrop(remainder.copy());
+                inventory.placeItemBackInInventory(remainder.copy());
             }
         }
 
-        inventory.markDirty();
-        handler.onContentChanged(gridInventory);
-        handler.sendContentUpdates();
-        resultStack.onCraftByPlayer(player.getWorld(), player, resultStack.getCount());
+        inventory.setChanged();
+        handler.slotsChanged(gridInventory);
+        handler.broadcastChanges();
+        resultStack.onCraftedBy(player.level(), player, resultStack.getCount());
     }
 
-    private static ItemStack selectIngredients(CraftingRecipe recipe, List<ItemStack> sources, int[] used, int[] selected, int index, RecipeInputInventory gridInventory, World world, PlayerInventory inventory, boolean shiftPressed) {
+    private static ItemStack selectIngredients(CraftingRecipe recipe, List<ItemStack> sources, int[] used, int[] selected, int index, CraftingContainer gridInventory, Level world, Inventory inventory, boolean shiftPressed) {
         if (index == selected.length) {
-            CraftingRecipeInput input = createRecipeInput(recipe, sources, selected, gridInventory);
+            CraftingInput input = createRecipeInput(recipe, sources, selected, gridInventory);
             if (!recipe.matches(input, world)) {
                 return ItemStack.EMPTY;
             }
 
-            ItemStack resultStack = recipe.craft(input, world.getRegistryManager());
+            ItemStack resultStack = recipe.assemble(input, world.registryAccess());
             if (resultStack.isEmpty()) {
                 return ItemStack.EMPTY;
             }
 
-            int cursorIndex = gridInventory.size();
+            int cursorIndex = gridInventory.getContainerSize();
             if (shiftPressed) {
                 return canInsertResult(inventory, resultStack, used, cursorIndex + 1) ? resultStack : ItemStack.EMPTY;
             }
 
             ItemStack cursorStack = sources.get(cursorIndex).copy();
-            cursorStack.decrement(used[cursorIndex]);
-            if (cursorStack.isEmpty() || ItemStack.areItemsAndComponentsEqual(cursorStack, resultStack) && cursorStack.getCount() + resultStack.getCount() <= cursorStack.getMaxCount()) {
+            cursorStack.shrink(used[cursorIndex]);
+            if (cursorStack.isEmpty() || ItemStack.isSameItemSameComponents(cursorStack, resultStack) && cursorStack.getCount() + resultStack.getCount() <= cursorStack.getMaxStackSize()) {
                 return resultStack;
             }
             return ItemStack.EMPTY;
@@ -166,11 +170,11 @@ public class CraftSenseNetworking {
         return ItemStack.EMPTY;
     }
 
-    private static CraftingRecipeInput createRecipeInput(CraftingRecipe recipe, List<ItemStack> sources, int[] selected, RecipeInputInventory gridInventory) {
+    private static CraftingInput createRecipeInput(CraftingRecipe recipe, List<ItemStack> sources, int[] selected, CraftingContainer gridInventory) {
         int width = gridInventory.getWidth();
         int recipeWidth = recipe instanceof ShapedRecipe shapedRecipe ? shapedRecipe.getWidth() : width;
         List<ItemStack> stacks = new ArrayList<>();
-        for (int i = 0; i < gridInventory.size(); i++) {
+        for (int i = 0; i < gridInventory.getContainerSize(); i++) {
             stacks.add(ItemStack.EMPTY);
         }
 
@@ -181,18 +185,18 @@ public class CraftSenseNetworking {
             }
         }
 
-        return CraftingRecipeInput.create(width, gridInventory.getHeight(), stacks);
+        return CraftingInput.of(width, gridInventory.getHeight(), stacks);
     }
 
-    private static boolean canInsertResult(PlayerInventory inventory, ItemStack resultStack, int[] used, int inventoryStart) {
+    private static boolean canInsertResult(Inventory inventory, ItemStack resultStack, int[] used, int inventoryStart) {
         int remaining = resultStack.getCount();
-        for (int i = 0; i < PlayerInventory.MAIN_SIZE; i++) {
-            ItemStack stack = inventory.getStack(i);
+        for (int i = 0; i < Inventory.INVENTORY_SIZE; i++) {
+            ItemStack stack = inventory.getItem(i);
             int count = stack.getCount() - used[inventoryStart + i];
-            if (count > 0 && ItemStack.areItemsAndComponentsEqual(stack, resultStack)) {
-                remaining -= inventory.getMaxCount(stack) - count;
+            if (count > 0 && ItemStack.isSameItemSameComponents(stack, resultStack)) {
+                remaining -= inventory.getMaxStackSize(stack) - count;
             } else if (count == 0) {
-                remaining -= inventory.getMaxCount(resultStack);
+                remaining -= inventory.getMaxStackSize(resultStack);
             }
 
             if (remaining <= 0) {
