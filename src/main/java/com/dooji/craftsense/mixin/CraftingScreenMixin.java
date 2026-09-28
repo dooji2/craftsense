@@ -2,6 +2,7 @@ package com.dooji.craftsense.mixin;
 
 import com.dooji.craftsense.CraftSense;
 import com.dooji.craftsense.CraftingPredictor;
+import com.dooji.craftsense.manager.CraftSenseTracker;
 import com.dooji.craftsense.network.payloads.CraftItemPayload;
 
 import com.mojang.blaze3d.platform.InputConstants;
@@ -102,7 +103,7 @@ public abstract class CraftingScreenMixin {
             cachedLastCraftedRecipe = predictor.suggestLastCraftedItem(input, playerInventory, cursorStack, world);
             
             if (cachedLastCraftedRecipe.isEmpty()) {
-                cachedSuggestedRecipe = predictor.suggestRecipe(input, playerInventory, cursorStack, world);
+                cachedSuggestedRecipe = predictor.suggestRecipe(input, playerInventory, cursorStack, world, CraftSenseTracker.isPrioritizingCombatItems());
             } else {
                 cachedSuggestedRecipe = Optional.empty();
             }
@@ -186,7 +187,7 @@ public abstract class CraftingScreenMixin {
 
             Optional<CraftingRecipe> optionalRecipe = lastCraftedRecipe.isPresent()
                     ? lastCraftedRecipe
-                    : predictor.suggestRecipe(input, playerInventory, handler.getCarried(), world);
+                    : predictor.suggestRecipe(input, playerInventory, handler.getCarried(), world, CraftSenseTracker.isPrioritizingCombatItems());
 
             if (optionalRecipe.isPresent()) {
                 if (currentTime - lastMouseClickTime < cooldownDuration) {

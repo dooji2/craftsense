@@ -2,7 +2,6 @@ package com.dooji.craftsense;
 
 import com.dooji.craftsense.manager.CategoryHabitsTracker;
 import com.dooji.craftsense.manager.CategoryManager;
-import com.dooji.craftsense.manager.CraftSenseTracker;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
@@ -144,7 +143,7 @@ public class CraftingPredictor {
         return Objects.equals(stack.getComponents(), itemToMatch.getComponents());
     }
 
-    public Optional<CraftingRecipe> suggestRecipe(CraftingContainer input, Inventory playerInventory, ItemStack cursorStack, Level world) {
+    public Optional<CraftingRecipe> suggestRecipe(CraftingContainer input, Inventory playerInventory, ItemStack cursorStack, Level world, boolean prioritizeCombatItems) {
         List<CraftingRecipe> recipes = getCraftingRecipes();
         if (isGridEmpty(input)) {
             return Optional.empty();
@@ -227,7 +226,7 @@ public class CraftingPredictor {
         if (bestRecipe != null && CategoryManager.getCategory(getResult(bestRecipe, world).getItem()).equals("TOOL")) {
             boolean hasWeapon = playerInventoryContainsWeapon(playerInventory);
 
-            if (CraftSenseTracker.isPrioritizingCombatItems() && !hasWeapon) {
+            if (prioritizeCombatItems && !hasWeapon) {
                 Optional<CraftingRecipe> combatRecipe = suggestCombatRecipe(filteredRecipes, input, playerInventory, cursorStack, world);
                 if (combatRecipe.isPresent()) {
                     return combatRecipe;
