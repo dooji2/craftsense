@@ -2,6 +2,7 @@
   "required": true,
   "package": "com.dooji.craftsense.mixin",
   "compatibilityLevel": "JAVA_17",
+  "refmap": "craftsense.refmap.json",
   "mixins": [
     "CraftingEventMixin",
     "CraftingScreenHandlerAccessor"
@@ -13,5 +14,6 @@
     "CraftingScreenMixin",
     "HandledScreenAccessor",
     "StatsScreenMixin"
-  ]
+  ],
+  "minVersion": "0.8"
 }
