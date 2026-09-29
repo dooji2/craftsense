@@ -60,7 +60,7 @@ tasks.named('jar') {
 	def modVersion = project.mod_version
 	def namespace = project.archives_base_name
 
-	archiveBaseName.set("${namespace}-${minecraftVersion}-v${modVersion}")
+	archiveBaseName.set("${namespace}-${modVersion}-fabric-mc${minecraftVersion}")
 
 	archiveVersion.set("")
 }
