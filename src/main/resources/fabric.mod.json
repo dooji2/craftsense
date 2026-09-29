@@ -3,7 +3,7 @@
 	"id": "craftsense",
 	"version": "${version}",
 	"name": "CraftSense",
-	"description": "A Minecraft mod that predicts crafting recipes in real-time, offering previews based on items in the crafting grid and adapting to your crafting habits over time.",
+	"description": "Autocomplete for the crafting table. It tracks what you craft, suggests recipes, and lets you take the result from the output slot without placing the rest of the ingredients!",
 	"authors": [
 		"Dooji"
 	],
