@@ -6,7 +6,7 @@ It also remembers the last item you've crafted, so in that case you don't need t
 
 Categories are generated every time you launch the game, and the mod tracks what you craft in each one. It uses those habits to choose what to suggest, and having many specific categories should make those suggestions pretty (hopefully) accurate.
 
-![CraftSense Showcase](https://cdn.modrinth.com/data/cached_images/b70322cf87470720fc685f3354b4e37c6533eb4a_0.webp)
+![CraftSense Showcase](https://cdn.modrinth.com/data/btPzz1Xc/images/20960cbff09dc12fef47bf16fca4b3d9018b3830.png)
 
 ## **Usage Guidelines**
 
